@@ -162,6 +162,18 @@ wrangler deploy
 
 詳細は `backend/README.md` を参照してください。
 
+## 共有シート連携 (iOS Share Extension)
+
+iOS の共有シートから Links へ URL を直接送るには、Xcode で Share Extension ターゲットを追加する必要があります。詳しいセットアップ手順は [`ios_share_extension_template/README.md`](ios_share_extension_template/README.md) を参照してください。
+
+テンプレートフォルダ（`ios_share_extension_template/`）には以下が含まれます:
+
+- `ShareViewController.swift` — URL を App Group (`group.com.links.app`) 経由で渡す Swift 実装
+- `ShareExtension-Info.plist` — Share Extension の Info.plist テンプレート
+- `Runner.entitlements.snippet` / `ShareExtension.entitlements.snippet` — 両ターゲットの entitlements に追加する App Groups 宣言
+
+> Share Extension の設定が完了するまで、アプリは手動での URL ペーストのみで動作します。
+
 ## 現状
 
 **pre-alpha / Slice 1 scaffold** — ディレクトリ構成とスタブファイルのみ。機能実装はこれからです。
