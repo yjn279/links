@@ -1,15 +1,53 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:links/features/bookmarks/domain/bookmark.dart';
+import 'package:links/features/bookmarks/domain/bookmark_repository.dart';
 import 'package:links/features/bookmarks/presentation/bookmark_list_screen.dart';
 import 'package:links/features/bookmarks/presentation/bookmarks_notifier.dart';
-import 'package:links/features/tags/presentation/tags_provider.dart';
 
 import '../../../helpers/bookmark_factory.dart';
 import '../../../helpers/fake_bookmark_repository.dart';
-import '../../../helpers/fake_tag_repository.dart';
 import '../../../helpers/pump_screen.dart';
+
+class _SlowFakeRepository implements BookmarkRepository {
+  final _completer = Completer<List<Bookmark>>();
+
+  @override
+  Future<List<Bookmark>> getAll() => _completer.future;
+
+  @override
+  Stream<List<Bookmark>> watchAll() => const Stream.empty();
+
+  @override
+  Future<void> add(Bookmark _) async {}
+
+  @override
+  Future<void> update(Bookmark _) async {}
+
+  @override
+  Future<void> delete(String _) async {}
+}
+
+class _FailingFakeRepository implements BookmarkRepository {
+  @override
+  Future<List<Bookmark>> getAll() async => throw Exception('boom');
+
+  @override
+  Stream<List<Bookmark>> watchAll() => const Stream.empty();
+
+  @override
+  Future<void> add(Bookmark _) async {}
+
+  @override
+  Future<void> update(Bookmark _) async {}
+
+  @override
+  Future<void> delete(String _) async {}
+}
 
 void main() {
   group('BookmarkListScreen', () {
@@ -220,6 +258,47 @@ void main() {
         fake.calls.any((c) => c.method == 'delete' && c.arg == bm.id),
         isTrue,
       );
+    });
+
+    // W-10: shows loading indicator while notifier is loading
+    testWidgets('shows loading indicator while notifier is loading',
+        (tester) async {
+      final slow = _SlowFakeRepository();
+
+      final container = ProviderContainer(
+        overrides: [
+          bookmarkRepositoryProvider.overrideWithValue(slow),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: BookmarkListScreen()),
+        ),
+      );
+      // Do NOT pumpAndSettle — the future never completes.
+      await tester.pump();
+
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    });
+
+    // W-11: shows error state when notifier errors during load
+    testWidgets('shows error state when notifier errors during load',
+        (tester) async {
+      final failing = _FailingFakeRepository();
+
+      await pumpScreen(
+        tester,
+        const BookmarkListScreen(),
+        overrides: [
+          bookmarkRepositoryProvider.overrideWithValue(failing),
+        ],
+      );
+
+      expect(find.byKey(const Key('error_state')), findsOneWidget);
+      expect(find.text('Retry'), findsOneWidget);
     });
   });
 }

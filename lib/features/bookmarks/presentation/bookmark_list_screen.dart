@@ -2,8 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:links/features/bookmarks/domain/bookmark.dart';
+import 'package:links/features/bookmarks/domain/exceptions.dart';
 import 'package:links/features/bookmarks/presentation/add_bookmark_dialog.dart';
 import 'package:links/features/bookmarks/presentation/bookmarks_notifier.dart';
+
+String _formatError(Object err) {
+  if (err is InvalidUrlException) return err.message;
+  return err.toString().replaceFirst('Exception: ', '');
+}
 
 class BookmarkListScreen extends ConsumerWidget {
   const BookmarkListScreen({super.key});
@@ -24,7 +30,31 @@ class BookmarkListScreen extends ConsumerWidget {
       ),
       body: state.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(child: Text('Error: $err')),
+        error: (err, stack) => Center(
+          key: const Key('error_state'),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.error_outline, size: 48),
+                const SizedBox(height: 12),
+                const Text('Something went wrong'),
+                const SizedBox(height: 8),
+                Text(
+                  _formatError(err),
+                  style: Theme.of(context).textTheme.bodySmall,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: () => ref.invalidate(bookmarksNotifierProvider),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
+        ),
         data: (bookmarks) {
           if (bookmarks.isEmpty) {
             return const _EmptyState(key: Key('empty_state'));

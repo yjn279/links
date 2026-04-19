@@ -14,6 +14,8 @@ class AddBookmarkDialog extends ConsumerStatefulWidget {
 class _AddBookmarkDialogState extends ConsumerState<AddBookmarkDialog> {
   final _formKey = GlobalKey<FormState>();
   final _controller = TextEditingController();
+  bool _submitting = false;
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -34,10 +36,24 @@ class _AddBookmarkDialogState extends ConsumerState<AddBookmarkDialog> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    final notifier = ref.read(bookmarksNotifierProvider.notifier);
-    await notifier.add(_controller.text);
-    if (mounted) Navigator.of(context).pop();
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    setState(() {
+      _submitting = true;
+      _errorMessage = null;
+    });
+    await ref.read(bookmarksNotifierProvider.notifier).add(_controller.text);
+    if (!mounted) return;
+    final state = ref.read(bookmarksNotifierProvider);
+    if (state.hasError) {
+      setState(() {
+        _submitting = false;
+        _errorMessage = state.error is InvalidUrlException
+            ? (state.error as InvalidUrlException).message
+            : 'Could not add bookmark';
+      });
+      return;
+    }
+    Navigator.of(context).pop();
   }
 
   @override
@@ -46,15 +62,31 @@ class _AddBookmarkDialogState extends ConsumerState<AddBookmarkDialog> {
       title: const Text('Add bookmark'),
       content: Form(
         key: _formKey,
-        child: TextFormField(
-          key: const Key('url_input'),
-          controller: _controller,
-          decoration: const InputDecoration(
-            labelText: 'URL',
-            hintText: 'https://...',
-          ),
-          validator: _validateUrl,
-          autofocus: true,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextFormField(
+              key: const Key('url_input'),
+              controller: _controller,
+              decoration: const InputDecoration(
+                labelText: 'URL',
+                hintText: 'https://...',
+              ),
+              validator: _validateUrl,
+              autofocus: true,
+            ),
+            if (_errorMessage != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                _errorMessage!,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ],
         ),
       ),
       actions: [
@@ -64,8 +96,14 @@ class _AddBookmarkDialogState extends ConsumerState<AddBookmarkDialog> {
         ),
         FilledButton(
           key: const Key('add_confirm'),
-          onPressed: _submit,
-          child: const Text('Add'),
+          onPressed: _submitting ? null : _submit,
+          child: _submitting
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Add'),
         ),
       ],
     );

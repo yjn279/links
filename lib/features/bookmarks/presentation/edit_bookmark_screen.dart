@@ -49,8 +49,20 @@ class _EditBookmarkScreenState extends ConsumerState<EditBookmarkScreen> {
   }
 
   Future<void> _save() async {
-    final bookmarks = ref.read(bookmarksNotifierProvider).value ?? [];
-    final bookmark = bookmarks.firstWhere((b) => b.id == widget.bookmarkId);
+    final bookmarks = ref.read(bookmarksNotifierProvider).value ?? const [];
+    final Bookmark? original = bookmarks.cast<Bookmark?>().firstWhere(
+      (b) => b?.id == widget.bookmarkId,
+      orElse: () => null,
+    );
+    if (original == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Bookmark not found')),
+        );
+      }
+      return;
+    }
+    final bookmark = original;
     final newUrl = _urlController!.text;
 
     final Bookmark updated;
@@ -84,7 +96,33 @@ class _EditBookmarkScreenState extends ConsumerState<EditBookmarkScreen> {
         body: Center(child: CircularProgressIndicator()),
       ),
       error: (err, _) => Scaffold(
-        body: Center(child: Text('Error: $err')),
+        key: const Key('edit_error_state'),
+        appBar: AppBar(
+          leading: BackButton(onPressed: () => context.pop()),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.error_outline, size: 48),
+                const SizedBox(height: 12),
+                const Text('Something went wrong'),
+                const SizedBox(height: 8),
+                Text(
+                  err.toString().replaceFirst('Exception: ', ''),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: () => context.pop(),
+                  child: const Text('Go back'),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
       data: (bookmarks) {
         final bmList = bookmarks.where((b) => b.id == widget.bookmarkId).toList();

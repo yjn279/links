@@ -204,6 +204,19 @@ void main() {
           .toList();
       expect(updateCalls, isNotEmpty);
 
+      // Verify the full payload passed to update
+      expect(fake.calls.last.method, equals('update'));
+      final updatedArg = fake.calls.last.arg as Bookmark;
+      expect(updatedArg.id, equals(bm.id)); // id preserved
+      expect(updatedArg.url, equals('https://new.com'));
+      expect(updatedArg.summary, equals('my note'));
+      expect(updatedArg.tags, containsAll(['go', 'rust']));
+      expect(
+        updatedArg.faviconUrl,
+        equals('https://www.google.com/s2/favicons?domain=new.com&sz=64'),
+      );
+      expect(updatedArg.createdAt, equals(bm.createdAt)); // preserved
+
       // Verify navigation popped back to list
       expect(find.text('list'), findsOneWidget);
     });
