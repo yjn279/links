@@ -176,4 +176,46 @@ iOS の共有シートから Links へ URL を直接送るには、Xcode で Sha
 
 ## 現状
 
-**pre-alpha / Slice 1 scaffold** — ディレクトリ構成とスタブファイルのみ。機能実装はこれからです。
+**MVP 完了（2026-04）** — コードレベルの全スライスが実装済みです。
+
+### 完了している機能
+
+- ドメインエンティティ（Bookmark、URL 検証、ファビコン URL 自動算出）
+- Drift（SQLite）によるローカル永続化と Bookmarks/Tags リポジトリ
+- Riverpod ベースの状態管理（AsyncNotifier）
+- ブックマーク一覧画面（空状態・読み込み中・エラー状態対応）
+- 追加ダイアログ（URL 検証、失敗時は閉じずにエラー表示）
+- 編集画面（URL / 概要 / タグをチップ UI で編集）
+- 既存タグのチップ候補自動表示 + 新規タグ入力 + 未使用タグ自動削除
+- 行タップで外部ブラウザ起動（url_launcher）、編集アイコンで編集画面遷移
+- スワイプで削除
+- ファビコン表示（Google s2/favicons + フォールバックアイコン）
+- Cloudflare Worker バックエンド（`/summarize` エンドポイント、Haiku による AI 要約）
+- バックエンド統合（保存直後にバックグラウンドで要約 + タイトル取得）
+- iOS Share Extension の Dart 側統合と Xcode テンプレート
+- Codemagic CI（analyze → test → build IPA → TestFlight 自動配信）
+
+### 残タスク（環境依存で本リポジトリ内では完結しないもの）
+
+- `flutter create . --platforms=ios --org=com.links` による iOS プラットフォームフォルダ生成（Flutter SDK が必要）
+- `dart run build_runner build --delete-conflicting-outputs` によるコード生成（Drift の `*.g.dart`）
+- `flutter test` によるテスト実行（本リポジトリ作成環境には Flutter SDK が未インストールのため実行されていません）
+- `ios_share_extension_template/README.md` の手順に従った Xcode での Share Extension ターゲット追加
+- Cloudflare Worker のデプロイと `ANTHROPIC_API_KEY` / `LINKS_BACKEND_TOKEN` シークレット設定
+- Apple Developer Program への登録と Bundle ID `com.links.app` の登録
+- アプリアイコン画像の追加（`ios/Runner/Assets.xcassets/AppIcon.appiconset/`）
+
+### テスト数（参考）
+
+| レイヤ | テスト数 |
+|---|---|
+| Domain | 12 |
+| Data (Bookmarks + Tags) | 17 |
+| Notifier | 5 |
+| Notifier (背景要約) | 2 |
+| Widget List 画面 | 12 |
+| Widget Edit 画面 | 8 |
+| BackendClient | 4 |
+| Share Intent Listener | 2 |
+| Backend (vitest) | 13 |
+| **合計** | **75** |
