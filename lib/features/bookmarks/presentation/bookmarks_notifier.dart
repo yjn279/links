@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:links/core/network/backend_providers.dart';
 import 'package:links/features/bookmarks/domain/bookmark.dart';
 import 'package:links/features/bookmarks/domain/bookmark_repository.dart';
 
@@ -27,14 +29,31 @@ class BookmarksNotifier extends AsyncNotifier<List<Bookmark>> {
   }
 
   Future<void> add(String url) async {
-    // Attempt to construct the domain entity. If URL is invalid, surface as
-    // AsyncError without mutating the current list.
     try {
       final bookmark = Bookmark.create(url);
       await ref.read(bookmarkRepositoryProvider).add(bookmark);
-      // The stream subscription in build() will update state.
+      // Fire-and-forget summarization.
+      _enrichInBackground(bookmark);
     } catch (e, st) {
       state = AsyncError(e, st);
+    }
+  }
+
+  void _enrichInBackground(Bookmark bookmark) {
+    unawaited(_summarizeAndUpdate(bookmark));
+  }
+
+  Future<void> _summarizeAndUpdate(Bookmark bookmark) async {
+    try {
+      final service = ref.read(summarizeServiceProvider);
+      final result = await service.summarize(bookmark.url);
+      final updated = bookmark.copyWith(
+        title: result.title,
+        summary: result.summary,
+      );
+      await ref.read(bookmarkRepositoryProvider).update(updated);
+    } catch (_) {
+      // Intentionally swallow — summarization is best-effort.
     }
   }
 
