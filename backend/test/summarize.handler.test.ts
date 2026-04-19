@@ -21,7 +21,7 @@ afterAll(() => {
   vi.unstubAllGlobals();
 });
 
-const VALID_TOKEN = 'test-token-abc';
+const VALID_TOKEN = 'test-token-abc123';
 const BASE_URL = 'http://localhost';
 
 function authHeaders(token?: string) {

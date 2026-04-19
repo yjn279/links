@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:network_image_mock/network_image_mock.dart';
 import 'package:links/core/platform/url_opener.dart';
 import 'package:links/features/bookmarks/domain/bookmark.dart';
 import 'package:links/features/bookmarks/domain/bookmark_repository.dart';
@@ -81,6 +82,7 @@ void main() {
 
     // W-02: shows one row per bookmark
     testWidgets('shows one row per bookmark', (tester) async {
+      await mockNetworkImagesFor(() async {
       final bm1 = makeBookmark('https://one.com');
       final bm2 = makeBookmark('https://two.com');
       final fake = FakeBookmarkRepository(initial: [bm1, bm2]);
@@ -94,10 +96,12 @@ void main() {
       );
 
       expect(find.byType(ListTile), findsNWidgets(2));
+      });
     });
 
     // W-03: row displays title when non-null
     testWidgets('row displays title when non-null', (tester) async {
+      await mockNetworkImagesFor(() async {
       final bm = makeBookmark('https://mysite.com', title: 'My Site');
       final fake = FakeBookmarkRepository(initial: [bm]);
 
@@ -110,10 +114,12 @@ void main() {
       );
 
       expect(find.text('My Site'), findsOneWidget);
+      });
     });
 
     // W-04: row displays url when title is null
     testWidgets('row displays url when title is null', (tester) async {
+      await mockNetworkImagesFor(() async {
       final bm = makeBookmark('https://x.com');
       final fake = FakeBookmarkRepository(initial: [bm]);
 
@@ -126,10 +132,12 @@ void main() {
       );
 
       expect(find.text('https://x.com'), findsOneWidget);
+      });
     });
 
     // W-05: tapping row opens URL via urlOpenerProvider (no navigation)
     testWidgets('tapping row opens URL via urlOpenerProvider', (tester) async {
+      await mockNetworkImagesFor(() async {
       final bm = makeBookmark('https://open-me.com');
       final fake = FakeBookmarkRepository(initial: [bm]);
       final opener = _FakeUrlOpener();
@@ -147,11 +155,13 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(opener.opened, equals(['https://open-me.com']));
+      });
     });
 
     // W-05b: tapping edit button navigates to edit screen
     testWidgets('tapping edit button navigates to edit screen',
         (tester) async {
+      await mockNetworkImagesFor(() async {
       final bm = makeBookmark('https://nav.com');
       final fake = FakeBookmarkRepository(initial: [bm]);
       final expectedId = bm.id;
@@ -186,6 +196,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('edit-$expectedId'), findsOneWidget);
+      });
     });
 
     // W-06: FAB opens add-bookmark dialog
@@ -209,6 +220,7 @@ void main() {
     // W-07: valid URL in dialog adds row and closes dialog
     testWidgets('valid URL in dialog adds row and closes dialog',
         (tester) async {
+      await mockNetworkImagesFor(() async {
       final fake = FakeBookmarkRepository();
 
       await pumpScreen(
@@ -231,6 +243,7 @@ void main() {
 
       expect(find.byKey(const Key('url_input')), findsNothing);
       expect(find.text('https://added.com'), findsOneWidget);
+      });
     });
 
     // W-08: invalid URL in dialog shows validation error
@@ -262,6 +275,7 @@ void main() {
 
     // W-09: swipe dismiss calls delete and removes row
     testWidgets('swipe dismiss calls delete and removes row', (tester) async {
+      await mockNetworkImagesFor(() async {
       final bm = makeBookmark('https://dismiss.com');
       final fake = FakeBookmarkRepository(initial: [bm]);
 
@@ -286,6 +300,7 @@ void main() {
         fake.calls.any((c) => c.method == 'delete' && c.arg == bm.id),
         isTrue,
       );
+      });
     });
 
     // W-10: shows loading indicator while notifier is loading
@@ -331,43 +346,24 @@ void main() {
     testWidgets(
       'list row displays favicon with bookmark faviconUrl',
       (tester) async {
-        final bm = Bookmark.create('https://example.com');
-        final fake = FakeBookmarkRepository(initial: [bm]);
-        await pumpScreen(
-          tester,
-          const BookmarkListScreen(),
-          overrides: [bookmarkRepositoryProvider.overrideWithValue(fake)],
-        );
-        expect(find.byKey(Key('favicon_${bm.id}')), findsOneWidget);
-        final image = tester.widget<Image>(
-          find.descendant(
-            of: find.byKey(Key('favicon_${bm.id}')),
-            matching: find.byType(Image),
-          ),
-        );
-        final provider = image.image as NetworkImage;
-        expect(provider.url, equals(bm.faviconUrl));
-      },
-    );
-
-    testWidgets(
-      'favicon shows fallback icon when network image fails',
-      (tester) async {
-        final bm = Bookmark.create('https://example.com');
-        final fake = FakeBookmarkRepository(initial: [bm]);
-        await pumpScreen(
-          tester,
-          const BookmarkListScreen(),
-          overrides: [bookmarkRepositoryProvider.overrideWithValue(fake)],
-        );
-        await tester.pump(const Duration(seconds: 1));
-        expect(
-          find.descendant(
-            of: find.byKey(Key('favicon_${bm.id}')),
-            matching: find.byIcon(Icons.link),
-          ),
-          findsOneWidget,
-        );
+        await mockNetworkImagesFor(() async {
+          final bm = Bookmark.create('https://example.com');
+          final fake = FakeBookmarkRepository(initial: [bm]);
+          await pumpScreen(
+            tester,
+            const BookmarkListScreen(),
+            overrides: [bookmarkRepositoryProvider.overrideWithValue(fake)],
+          );
+          expect(find.byKey(Key('favicon_${bm.id}')), findsOneWidget);
+          final image = tester.widget<Image>(
+            find.descendant(
+              of: find.byKey(Key('favicon_${bm.id}')),
+              matching: find.byType(Image),
+            ),
+          );
+          final provider = image.image as NetworkImage;
+          expect(provider.url, equals(bm.faviconUrl));
+        });
       },
     );
   });

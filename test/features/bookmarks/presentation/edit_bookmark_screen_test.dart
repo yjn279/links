@@ -156,7 +156,7 @@ void main() {
       final tagFake = FakeTagRepository(initial: ['go', 'rust']);
 
       final router = GoRouter(
-        initialLocation: '/edit/${bm.id}',
+        initialLocation: '/',
         routes: [
           GoRoute(
             path: '/',
@@ -179,6 +179,9 @@ void main() {
           tagRepositoryProvider.overrideWithValue(tagFake),
         ],
       );
+
+      router.push('/edit/${bm.id}');
+      await tester.pumpAndSettle();
 
       // Change URL
       await tester.enterText(
@@ -228,7 +231,7 @@ void main() {
       final tagFake = FakeTagRepository();
 
       final router = GoRouter(
-        initialLocation: '/edit/${bm.id}',
+        initialLocation: '/',
         routes: [
           GoRoute(
             path: '/',
@@ -251,6 +254,9 @@ void main() {
           tagRepositoryProvider.overrideWithValue(tagFake),
         ],
       );
+
+      router.push('/edit/${bm.id}');
+      await tester.pumpAndSettle();
 
       // Tap cancel button
       await tester.tap(find.byKey(const Key('cancel_button')));
