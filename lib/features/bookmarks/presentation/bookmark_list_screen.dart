@@ -103,6 +103,7 @@ class _BookmarkListItem extends ConsumerWidget {
         child: const Icon(Icons.delete, color: Colors.white),
       ),
       child: ListTile(
+        leading: _FaviconAvatar(url: bookmark.faviconUrl, id: bookmark.id),
         title: Text(bookmark.title ?? bookmark.url),
         subtitle: bookmark.tags.isEmpty
             ? null
@@ -111,4 +112,36 @@ class _BookmarkListItem extends ConsumerWidget {
       ),
     );
   }
+}
+
+class _FaviconAvatar extends StatelessWidget {
+  const _FaviconAvatar({required this.url, required this.id});
+
+  final String url;
+  final String id;
+
+  static const double _size = 32;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      key: Key('favicon_$id'),
+      borderRadius: BorderRadius.circular(4),
+      child: Image.network(
+        url,
+        width: _size,
+        height: _size,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _fallback,
+        loadingBuilder: (context, child, progress) =>
+            progress == null ? child : _fallback,
+      ),
+    );
+  }
+
+  static const Widget _fallback = SizedBox(
+    width: _size,
+    height: _size,
+    child: Icon(Icons.link, size: 20, color: Colors.grey),
+  );
 }

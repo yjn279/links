@@ -300,5 +300,51 @@ void main() {
       expect(find.byKey(const Key('error_state')), findsOneWidget);
       expect(find.text('Retry'), findsOneWidget);
     });
+
+    testWidgets(
+      'list row displays favicon with bookmark faviconUrl',
+      (tester) async {
+        final bm = Bookmark.create('https://example.com');
+        final fake = FakeBookmarkRepository(initial: [bm]);
+        await pumpScreen(
+          tester,
+          const BookmarkListScreen(),
+          overrides: [bookmarkRepositoryProvider.overrideWithValue(fake)],
+        );
+        expect(find.byKey(Key('favicon_${bm.id}')), findsOneWidget);
+        final image = tester.widget<Image>(
+          find.descendant(
+            of: find.byKey(Key('favicon_${bm.id}')),
+            matching: find.byType(Image),
+          ),
+        );
+        final provider = image.image as NetworkImage;
+        expect(provider.url, equals(bm.faviconUrl));
+      },
+    );
+
+    testWidgets(
+      'favicon shows fallback icon when network image fails',
+      (tester) async {
+        final bm = Bookmark.create('https://example.com');
+        final fake = FakeBookmarkRepository(initial: [bm]);
+        // NetworkImage in widget tests always fails to load — perfect for testing errorBuilder
+        await pumpScreen(
+          tester,
+          const BookmarkListScreen(),
+          overrides: [bookmarkRepositoryProvider.overrideWithValue(fake)],
+        );
+        // Wait for the Image to fail (widget tests don't actually hit network).
+        await tester.pump(const Duration(seconds: 1));
+        // The fallback icon (Icons.link) should render inside the favicon cell.
+        expect(
+          find.descendant(
+            of: find.byKey(Key('favicon_${bm.id}')),
+            matching: find.byIcon(Icons.link),
+          ),
+          findsOneWidget,
+        );
+      },
+    );
   });
 }
