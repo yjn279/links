@@ -1,0 +1,49 @@
+# codemagic.yaml — STUB (Slice 5 will implement the full CI/CD pipeline)
+#
+# This file is a placeholder so Codemagic can detect the project.
+# DO NOT enable any workflows here until signing is configured.
+#
+# Planned ios-workflow outline:
+#
+# workflows:
+#   ios-workflow:
+#     name: iOS Release
+#     max_build_duration: 60
+#     environment:
+#       flutter: 3.24.x
+#       xcode: latest
+#       cocoapods: default
+#       vars:
+#         BUNDLE_ID: com.links.app
+#         APP_STORE_APPLE_ID: <placeholder>
+#       # Signing variables to be set in Codemagic UI (not committed):
+#       #   APP_STORE_CONNECT_ISSUER_ID
+#       #   APP_STORE_CONNECT_KEY_IDENTIFIER
+#       #   APP_STORE_CONNECT_PRIVATE_KEY
+#       #   CERTIFICATE_PRIVATE_KEY
+#     triggering:
+#       events:
+#         - tag
+#       tag_patterns:
+#         - pattern: 'v*'
+#     scripts:
+#       - name: Get Flutter packages
+#         script: flutter pub get
+#       - name: Generate code
+#         script: dart run build_runner build --delete-conflicting-outputs
+#       - name: Run tests
+#         script: flutter test
+#       - name: Build IPA
+#         script: |
+#           flutter build ipa \
+#             --release \
+#             --dart-define=LINKS_BACKEND_URL=$LINKS_BACKEND_URL \
+#             --dart-define=LINKS_BACKEND_TOKEN=$LINKS_BACKEND_TOKEN \
+#             --export-options-plist=/Users/builder/export_options.plist
+#     artifacts:
+#       - build/ios/ipa/*.ipa
+#       - flutter_drive.log
+#     publishing:
+#       app_store_connect:
+#         auth: integration
+#         submit_to_testflight: true

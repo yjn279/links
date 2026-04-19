@@ -1,0 +1,37 @@
+# Dart / Flutter tool artifacts
+.dart_tool/
+.packages
+build/
+.pub-cache/
+.pub/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# IDE
+.idea/
+.vscode/settings.json
+.DS_Store
+
+# iOS generated (committed after flutter create)
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Flutter/App.framework
+ios/Flutter/flutter_assets/
+ios/Flutter/Generated.xcconfig
+ios/Runner/GeneratedPluginRegistrant.*
+
+# Backend
+backend/node_modules/
+backend/.wrangler/
+backend/dist/
+backend/.dev.vars
+backend/.env
+
+# Env files
+.env
+.env.local
+
+# Note: pubspec.lock is committed intentionally (app project).
+# Note: *.g.dart files are committed so CI can build without build_runner.
