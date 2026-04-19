@@ -1,0 +1,10 @@
+name = "links-backend"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+ANTHROPIC_MODEL = "claude-haiku-4-5"
+
+# Secrets set via: wrangler secret put ANTHROPIC_API_KEY
+# Secrets set via: wrangler secret put LINKS_BACKEND_TOKEN
