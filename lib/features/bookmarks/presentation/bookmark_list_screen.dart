@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:links/core/platform/url_opener.dart';
 import 'package:links/features/bookmarks/domain/bookmark.dart';
 import 'package:links/features/bookmarks/domain/exceptions.dart';
 import 'package:links/features/bookmarks/presentation/add_bookmark_dialog.dart';
@@ -22,6 +23,7 @@ class BookmarkListScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('Links')),
       floatingActionButton: FloatingActionButton(
         key: const Key('add_bookmark_fab'),
+        tooltip: 'Add bookmark',
         onPressed: () => showDialog<void>(
           context: context,
           builder: (_) => const AddBookmarkDialog(),
@@ -78,8 +80,27 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Text('No bookmarks yet'),
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.bookmark_border,
+            size: 72,
+            color: Theme.of(context).colorScheme.outline,
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'No bookmarks yet',
+            style: TextStyle(fontSize: 18),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Tap + or share a URL from another app',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -102,13 +123,33 @@ class _BookmarkListItem extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
         child: const Icon(Icons.delete, color: Colors.white),
       ),
-      child: ListTile(
-        leading: _FaviconAvatar(url: bookmark.faviconUrl, id: bookmark.id),
-        title: Text(bookmark.title ?? bookmark.url),
-        subtitle: bookmark.tags.isEmpty
-            ? null
-            : Text(bookmark.tags.join(', ')),
-        onTap: () => context.push('/edit/${bookmark.id}'),
+      child: Semantics(
+        button: true,
+        label: 'Open ${bookmark.title ?? bookmark.url}',
+        child: ListTile(
+          leading: _FaviconAvatar(url: bookmark.faviconUrl, id: bookmark.id),
+          title: Text(bookmark.title ?? bookmark.url),
+          subtitle: bookmark.tags.isEmpty
+              ? null
+              : Text(bookmark.tags.join(', ')),
+          trailing: IconButton(
+            key: Key('edit_button_${bookmark.id}'),
+            icon: const Icon(Icons.edit_outlined),
+            tooltip: 'Edit bookmark',
+            onPressed: () => context.push('/edit/${bookmark.id}'),
+          ),
+          onTap: () async {
+            final opener = ref.read(urlOpenerProvider);
+            try {
+              await opener.open(bookmark.url);
+            } catch (_) {
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Could not open ${bookmark.url}')),
+              );
+            }
+          },
+        ),
       ),
     );
   }

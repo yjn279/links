@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:links/core/platform/url_opener.dart';
 import 'package:links/features/bookmarks/domain/bookmark.dart';
 import 'package:links/features/bookmarks/domain/bookmark_repository.dart';
 import 'package:links/features/bookmarks/presentation/bookmark_list_screen.dart';
@@ -47,6 +48,18 @@ class _FailingFakeRepository implements BookmarkRepository {
 
   @override
   Future<void> delete(String _) async {}
+}
+
+class _FakeUrlOpener implements UrlOpener {
+  final List<String> opened = [];
+  bool shouldFail = false;
+
+  @override
+  Future<bool> open(String url) async {
+    opened.add(url);
+    if (shouldFail) throw Exception('cannot launch');
+    return true;
+  }
 }
 
 void main() {
@@ -115,8 +128,30 @@ void main() {
       expect(find.text('https://x.com'), findsOneWidget);
     });
 
-    // W-05: tapping row navigates to edit screen
-    testWidgets('tapping row navigates to edit screen', (tester) async {
+    // W-05: tapping row opens URL via urlOpenerProvider (no navigation)
+    testWidgets('tapping row opens URL via urlOpenerProvider', (tester) async {
+      final bm = makeBookmark('https://open-me.com');
+      final fake = FakeBookmarkRepository(initial: [bm]);
+      final opener = _FakeUrlOpener();
+
+      await pumpScreen(
+        tester,
+        const BookmarkListScreen(),
+        overrides: [
+          bookmarkRepositoryProvider.overrideWithValue(fake),
+          urlOpenerProvider.overrideWithValue(opener),
+        ],
+      );
+
+      await tester.tap(find.byType(ListTile).first);
+      await tester.pumpAndSettle();
+
+      expect(opener.opened, equals(['https://open-me.com']));
+    });
+
+    // W-05b: tapping edit button navigates to edit screen
+    testWidgets('tapping edit button navigates to edit screen',
+        (tester) async {
       final bm = makeBookmark('https://nav.com');
       final fake = FakeBookmarkRepository(initial: [bm]);
       final expectedId = bm.id;
@@ -143,10 +178,11 @@ void main() {
         router,
         overrides: [
           bookmarkRepositoryProvider.overrideWithValue(fake),
+          urlOpenerProvider.overrideWithValue(_FakeUrlOpener()),
         ],
       );
 
-      await tester.tap(find.byType(ListTile).first);
+      await tester.tap(find.byKey(Key('edit_button_$expectedId')));
       await tester.pumpAndSettle();
 
       expect(find.text('edit-$expectedId'), findsOneWidget);
@@ -171,7 +207,8 @@ void main() {
     });
 
     // W-07: valid URL in dialog adds row and closes dialog
-    testWidgets('valid URL in dialog adds row and closes dialog', (tester) async {
+    testWidgets('valid URL in dialog adds row and closes dialog',
+        (tester) async {
       final fake = FakeBookmarkRepository();
 
       await pumpScreen(
@@ -182,11 +219,9 @@ void main() {
         ],
       );
 
-      // Open dialog
       await tester.tap(find.byKey(const Key('add_bookmark_fab')));
       await tester.pumpAndSettle();
 
-      // Enter URL
       await tester.enterText(
         find.byKey(const Key('url_input')),
         'https://added.com',
@@ -194,13 +229,13 @@ void main() {
       await tester.tap(find.byKey(const Key('add_confirm')));
       await tester.pumpAndSettle();
 
-      // Dialog should be gone and row should appear
       expect(find.byKey(const Key('url_input')), findsNothing);
       expect(find.text('https://added.com'), findsOneWidget);
     });
 
     // W-08: invalid URL in dialog shows validation error
-    testWidgets('invalid URL in dialog shows validation error', (tester) async {
+    testWidgets('invalid URL in dialog shows validation error',
+        (tester) async {
       final fake = FakeBookmarkRepository();
 
       await pumpScreen(
@@ -211,11 +246,9 @@ void main() {
         ],
       );
 
-      // Open dialog
       await tester.tap(find.byKey(const Key('add_bookmark_fab')));
       await tester.pumpAndSettle();
 
-      // Enter invalid URL
       await tester.enterText(
         find.byKey(const Key('url_input')),
         'not a url',
@@ -223,7 +256,6 @@ void main() {
       await tester.tap(find.byKey(const Key('add_confirm')));
       await tester.pumpAndSettle();
 
-      // Error text visible, dialog still open
       expect(find.text('Invalid URL'), findsOneWidget);
       expect(find.byKey(const Key('url_input')), findsOneWidget);
     });
@@ -241,19 +273,15 @@ void main() {
         ],
       );
 
-      // Confirm row is there
       expect(find.byType(Dismissible), findsOneWidget);
 
-      // Swipe left to dismiss
       await tester.drag(
         find.byType(Dismissible).first,
         const Offset(-500, 0),
       );
       await tester.pumpAndSettle();
 
-      // Row should be gone
       expect(find.byType(ListTile), findsNothing);
-      // Verify delete was called
       expect(
         fake.calls.any((c) => c.method == 'delete' && c.arg == bm.id),
         isTrue,
@@ -278,7 +306,6 @@ void main() {
           child: const MaterialApp(home: BookmarkListScreen()),
         ),
       );
-      // Do NOT pumpAndSettle — the future never completes.
       await tester.pump();
 
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
@@ -328,15 +355,12 @@ void main() {
       (tester) async {
         final bm = Bookmark.create('https://example.com');
         final fake = FakeBookmarkRepository(initial: [bm]);
-        // NetworkImage in widget tests always fails to load — perfect for testing errorBuilder
         await pumpScreen(
           tester,
           const BookmarkListScreen(),
           overrides: [bookmarkRepositoryProvider.overrideWithValue(fake)],
         );
-        // Wait for the Image to fail (widget tests don't actually hit network).
         await tester.pump(const Duration(seconds: 1));
-        // The fallback icon (Icons.link) should render inside the favicon cell.
         expect(
           find.descendant(
             of: find.byKey(Key('favicon_${bm.id}')),
