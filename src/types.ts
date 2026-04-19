@@ -1,0 +1,14 @@
+export type Bookmark = {
+  id: string;
+  url: string;
+  title: string | null;
+  summary: string | null;
+  faviconUrl: string;
+  createdAt: number; // epoch millis UTC
+  tags: string[];
+};
+
+export type SummaryResult = {
+  summary: string;
+  title: string | null;
+};
