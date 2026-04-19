@@ -34,7 +34,8 @@ void main() {
       final container = ProviderContainer(overrides: [
         bookmarkRepositoryProvider.overrideWithValue(fake),
         summarizeServiceProvider.overrideWithValue(summarizer),
-      ]);
+      ],
+    );
       addTearDown(container.dispose);
 
       await container.read(bookmarksNotifierProvider.future);
@@ -59,7 +60,8 @@ void main() {
       final container = ProviderContainer(overrides: [
         bookmarkRepositoryProvider.overrideWithValue(fake),
         summarizeServiceProvider.overrideWithValue(_FailingSummarizeService()),
-      ]);
+      ],
+    );
       addTearDown(container.dispose);
 
       await container.read(bookmarksNotifierProvider.future);

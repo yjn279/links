@@ -32,7 +32,8 @@ void main() {
       final container = ProviderContainer(overrides: [
         bookmarkRepositoryProvider.overrideWithValue(fakeRepo),
         shareIntentSourceProvider.overrideWithValue(source),
-      ]);
+      ],
+    );
       addTearDown(container.dispose);
 
       await container.read(bookmarksNotifierProvider.future);
@@ -53,7 +54,8 @@ void main() {
       final container = ProviderContainer(overrides: [
         bookmarkRepositoryProvider.overrideWithValue(fakeRepo),
         shareIntentSourceProvider.overrideWithValue(source),
-      ]);
+      ],
+    );
       addTearDown(container.dispose);
 
       await container.read(bookmarksNotifierProvider.future);

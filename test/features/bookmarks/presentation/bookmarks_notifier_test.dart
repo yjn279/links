@@ -3,10 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:links/features/bookmarks/domain/bookmark.dart';
 import 'package:links/features/bookmarks/domain/exceptions.dart';
 import 'package:links/features/bookmarks/presentation/bookmarks_notifier.dart';
-import 'package:links/features/bookmarks/presentation/bookmarks_notifier.dart'
-    show bookmarkRepositoryProvider;
-import 'package:links/features/bookmarks/domain/bookmark_repository.dart';
-import '../../../../test/helpers/fake_bookmark_repository.dart';
+import '../../../helpers/fake_bookmark_repository.dart';
 
 ProviderContainer makeContainer(FakeBookmarkRepository fake) =>
     ProviderContainer(
@@ -137,7 +134,7 @@ void main() {
       final edited = original.copyWith(title: 'Updated Title');
       await container
           .read(bookmarksNotifierProvider.notifier)
-          .update(edited);
+          .save(edited);
 
       await Future<void>.delayed(Duration.zero);
 

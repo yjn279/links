@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:links/features/bookmarks/domain/bookmark.dart';
 import 'package:links/features/bookmarks/presentation/bookmarks_notifier.dart';
 import 'package:links/features/bookmarks/presentation/edit_bookmark_screen.dart';
 import 'package:links/features/tags/presentation/tags_provider.dart';

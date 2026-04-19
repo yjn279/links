@@ -89,7 +89,7 @@ void main() {
     });
 
     test('Bookmark.create accepts URL longer than 2048 characters', () {
-      final longUrl = 'https://example.com/' + 'a' * 2048;
+      final longUrl = 'https://example.com/${'a' * 2048}';
       final bookmark = Bookmark.create(longUrl);
       expect(bookmark.url, equals(longUrl));
     });

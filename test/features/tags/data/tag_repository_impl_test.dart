@@ -3,7 +3,7 @@
 // executing `flutter test`.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:links/core/database/app_database.dart';
+import 'package:links/core/database/app_database.dart' show AppDatabase;
 import 'package:links/features/bookmarks/data/bookmark_repository_impl.dart';
 import 'package:links/features/tags/data/tag_repository_impl.dart';
 

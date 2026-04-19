@@ -1,8 +1,12 @@
 import 'package:uuid/uuid.dart';
 import 'package:links/features/bookmarks/domain/exceptions.dart';
 
-// Sentinel object used in copyWith to distinguish "not provided" from null.
-final _sentinel = Object();
+// Sentinel used in copyWith to distinguish "not provided" from null.
+// Must be a const value so it can serve as a default parameter.
+class _CopyWithSentinel {
+  const _CopyWithSentinel();
+}
+const _sentinel = _CopyWithSentinel();
 
 class Bookmark {
   Bookmark({

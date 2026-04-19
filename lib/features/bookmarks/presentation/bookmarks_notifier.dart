@@ -57,7 +57,7 @@ class BookmarksNotifier extends AsyncNotifier<List<Bookmark>> {
     }
   }
 
-  Future<void> update(Bookmark bookmark) async {
+  Future<void> save(Bookmark bookmark) async {
     try {
       await ref.read(bookmarkRepositoryProvider).update(bookmark);
     } catch (e, st) {

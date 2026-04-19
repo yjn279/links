@@ -83,7 +83,7 @@ class _EditBookmarkScreenState extends ConsumerState<EditBookmarkScreen> {
       return;
     }
 
-    await ref.read(bookmarksNotifierProvider.notifier).update(updated);
+    await ref.read(bookmarksNotifierProvider.notifier).save(updated);
     if (mounted) context.pop();
   }
 
