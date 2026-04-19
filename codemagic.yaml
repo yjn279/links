@@ -1,49 +1,84 @@
-# codemagic.yaml — STUB (Slice 5 will implement the full CI/CD pipeline)
+# codemagic.yaml
 #
-# This file is a placeholder so Codemagic can detect the project.
-# DO NOT enable any workflows here until signing is configured.
+# Flutter iOS CI/CD pipeline for the Links app.
 #
-# Planned ios-workflow outline:
+# Flutter version is pinned to 3.29.0 (latest stable as of early 2026).
+# The developer should update this value periodically as new stable releases
+# are published (see https://docs.flutter.dev/release/release-notes).
 #
-# workflows:
-#   ios-workflow:
-#     name: iOS Release
-#     max_build_duration: 60
-#     environment:
-#       flutter: 3.24.x
-#       xcode: latest
-#       cocoapods: default
-#       vars:
-#         BUNDLE_ID: com.links.app
-#         APP_STORE_APPLE_ID: <placeholder>
-#       # Signing variables to be set in Codemagic UI (not committed):
-#       #   APP_STORE_CONNECT_ISSUER_ID
-#       #   APP_STORE_CONNECT_KEY_IDENTIFIER
-#       #   APP_STORE_CONNECT_PRIVATE_KEY
-#       #   CERTIFICATE_PRIVATE_KEY
-#     triggering:
-#       events:
-#         - tag
-#       tag_patterns:
-#         - pattern: 'v*'
-#     scripts:
-#       - name: Get Flutter packages
-#         script: flutter pub get
-#       - name: Generate code
-#         script: dart run build_runner build --delete-conflicting-outputs
-#       - name: Run tests
-#         script: flutter test
-#       - name: Build IPA
-#         script: |
-#           flutter build ipa \
-#             --release \
-#             --dart-define=LINKS_BACKEND_URL=$LINKS_BACKEND_URL \
-#             --dart-define=LINKS_BACKEND_TOKEN=$LINKS_BACKEND_TOKEN \
-#             --export-options-plist=/Users/builder/export_options.plist
-#     artifacts:
-#       - build/ios/ipa/*.ipa
-#       - flutter_drive.log
-#     publishing:
-#       app_store_connect:
-#         auth: integration
-#         submit_to_testflight: true
+# Required setup in the Codemagic UI before the first build:
+#   1. Create a variable group named "links_app_group" under
+#      Teams → <your team> → Global variables and secrets.
+#   2. Add the following variables to that group:
+#        LINKS_BACKEND_URL          — deployed Cloudflare Worker URL
+#        LINKS_BACKEND_TOKEN        — shared bearer token
+#        APP_STORE_CONNECT_KEY_IDENTIFIER  — App Store Connect API key ID
+#        APP_STORE_CONNECT_ISSUER_ID       — App Store Connect issuer UUID
+#        APP_STORE_CONNECT_PRIVATE_KEY     — contents of the .p8 private key file
+#        CERTIFICATE_PRIVATE_KEY           — contents of the distribution certificate key
+#   3. Connect the App Store Connect integration under
+#      Teams → Settings → Integrations → App Store Connect.
+
+workflows:
+  ios-workflow:
+    name: iOS Workflow
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      flutter: 3.29.0
+      xcode: latest
+      cocoapods: default
+      groups:
+        - links_app_group     # developer creates this in Codemagic UI; contains LINKS_BACKEND_URL, LINKS_BACKEND_TOKEN, and App Store Connect signing vars
+      vars:
+        BUNDLE_ID: com.links.app
+        XCODE_WORKSPACE: Runner.xcworkspace
+        XCODE_SCHEME: Runner
+    triggering:
+      events:
+        - push
+        - pull_request
+      branch_patterns:
+        - pattern: main
+          include: true
+          source: true
+    scripts:
+      - name: Install Flutter dependencies
+        script: |
+          flutter pub get
+      - name: Generate code (build_runner)
+        script: |
+          dart run build_runner build --delete-conflicting-outputs
+      - name: Flutter analyze
+        script: |
+          flutter analyze
+      - name: Flutter unit and widget tests
+        script: |
+          flutter test --coverage
+      - name: Install CocoaPods dependencies
+        script: |
+          cd ios && pod install
+      - name: Set up code signing
+        script: |
+          keychain initialize
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE --create
+          keychain add-certificates
+          xcode-project use-profiles
+      - name: Flutter iOS build
+        script: |
+          flutter build ipa --release \
+            --dart-define=LINKS_BACKEND_URL="$LINKS_BACKEND_URL" \
+            --dart-define=LINKS_BACKEND_TOKEN="$LINKS_BACKEND_TOKEN" \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - flutter_drive.log
+      - coverage/lcov.info
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        beta_groups:
+          - Internal Testers

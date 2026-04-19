@@ -71,6 +71,79 @@ flutter run --dart-define-from-file=.env.local
 flutter test
 ```
 
+## Codemagic CI
+
+`ios-workflow` は main ブランチへの push またはプルリクエストをトリガーに、自動でビルド・テスト・TestFlight 配信を行います。
+
+### Codemagic へのリポジトリ接続
+
+1. [codemagic.io](https://codemagic.io) にサインインし、**Add application** をクリックします。
+2. リポジトリプロバイダ（GitHub / GitLab / Bitbucket）を選択し、`links` リポジトリを選びます。
+3. **Flutter App** を選択して続行します。Codemagic はルートの `codemagic.yaml` を自動検出します。
+
+### 変数グループの作成（`links_app_group`）
+
+Codemagic の **Teams → \<your team\> → Global variables and secrets** 画面で、グループ名 `links_app_group` を作成し、以下の変数を追加してください。すべての値は **Secure（暗号化）** に設定することを推奨します。
+
+| 変数名 | 説明 |
+|---|---|
+| `LINKS_BACKEND_URL` | デプロイ済み Cloudflare Worker の URL（例: `https://links-api.your-subdomain.workers.dev`） |
+| `LINKS_BACKEND_TOKEN` | Worker 側で検証するベアラートークン |
+| `APP_STORE_CONNECT_KEY_IDENTIFIER` | App Store Connect API キー ID（例: `ABCDE12345`） |
+| `APP_STORE_CONNECT_ISSUER_ID` | App Store Connect 発行者 UUID |
+| `APP_STORE_CONNECT_PRIVATE_KEY` | `.p8` ファイルの内容をそのまま貼り付け |
+| `CERTIFICATE_PRIVATE_KEY` | 配布用証明書の秘密鍵（PEM 形式） |
+
+### App Store Connect インテグレーション
+
+1. Apple Developer Portal で **App Store Connect API キー**（Certificates, Identifiers & Profiles → Keys）を作成します。ロールは **App Manager** 以上を推奨します。
+2. Codemagic の **Teams → Settings → Integrations → App Store Connect** で、取得した Issuer ID・Key ID・`.p8` ファイルを登録します。
+3. `codemagic.yaml` 内の `publishing.app_store_connect.auth: integration` がこの設定を参照します。
+4. Bundle ID `com.links.app` が App Store Connect に登録済みであることを確認してください（App Store Connect → Apps → `+` → New App）。
+
+### ワークフローの内容
+
+| ステップ | 内容 |
+|---|---|
+| `flutter pub get` | パッケージ取得 |
+| `build_runner build` | Drift / Riverpod コード生成 |
+| `flutter analyze` | 静的解析（エラーがあればビルド失敗） |
+| `flutter test --coverage` | ユニット・ウィジェットテスト、カバレッジ出力 |
+| `pod install` | CocoaPods 依存関係インストール |
+| コード署名 | App Store Connect から証明書・プロビジョニングプロファイルを自動取得 |
+| `flutter build ipa` | リリース IPA ビルド（`LINKS_BACKEND_URL` / `LINKS_BACKEND_TOKEN` を `--dart-define` 経由で注入） |
+| TestFlight 配信 | Internal Testers グループへ自動配信 |
+
+成果物として `build/ios/ipa/*.ipa`、Xcode ビルドログ、カバレッジレポート（`coverage/lcov.info`）が保存されます。
+
+### トラブルシューティング
+
+**署名エラー（"No signing certificate found" など）**
+
+- `links_app_group` 内の署名関連変数がすべて設定されているか確認します。
+- `APP_STORE_CONNECT_PRIVATE_KEY` は `.p8` ファイルのヘッダー／フッター（`-----BEGIN PRIVATE KEY-----`）を含む全文を貼り付けてください。
+- Codemagic の App Store Connect インテグレーションが有効化されているか再確認します。
+- Bundle ID `com.links.app` が Apple Developer Portal で **Explicit** として登録されていることを確認します。
+
+**TestFlight 配信を一時的に無効化したい場合**
+
+`codemagic.yaml` の `publishing:` ブロック全体をコメントアウトしてください。
+
+```yaml
+    # publishing:
+    #   app_store_connect:
+    #     auth: integration
+    #     submit_to_testflight: true
+    #     beta_groups:
+    #       - Internal Testers
+```
+
+**Flutter バージョンの更新**
+
+`codemagic.yaml` の `environment.flutter` を新しいバージョン番号に変更します（例: `3.29.0` → `3.32.0`）。Flutter の最新安定版は https://docs.flutter.dev/release/release-notes で確認できます。
+
+---
+
 ## バックエンドのセットアップ概要
 
 バックエンドは Cloudflare Workers (TypeScript) で実装します（Slice 2 以降）。
@@ -88,10 +161,6 @@ wrangler deploy
 ```
 
 詳細は `backend/README.md` を参照してください。
-
-## Codemagic の注意点
-
-`codemagic.yaml` の署名関連変数（`CERTIFICATE_PRIVATE_KEY`, `PROVISIONING_PROFILE`, etc.）はプレースホルダです。実際のビルドを走らせるには Codemagic の UI 上で対応する環境変数を設定してください。Slice 5 で本格的な CI 設定を実装します。
 
 ## 現状
 
