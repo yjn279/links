@@ -5,6 +5,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:links/core/database/app_database.dart';
 import 'package:links/features/bookmarks/data/bookmark_repository_impl.dart';
+import 'package:links/features/bookmarks/domain/bookmark.dart';
 import 'package:links/features/tags/data/tag_repository_impl.dart';
 
 import '../../../helpers/bookmark_factory.dart';
@@ -196,5 +197,45 @@ void main() {
     // tags must be empty (orphan cleanup ran in delete).
     final tagRows = await db.select(db.tags).get();
     expect(tagRows, isEmpty);
+  });
+
+  // R-12
+  test('repository normalizes tags on add even when bypassing factory', () async {
+    final bookmark = Bookmark(
+      id: 'test-id-1',
+      url: 'https://example.com',
+      title: null,
+      summary: null,
+      faviconUrl: 'https://www.google.com/s2/favicons?domain=example.com&sz=64',
+      createdAt: DateTime.now().toUtc(),
+      tags: const [' Flutter ', 'DART'],
+    );
+    await repo.add(bookmark);
+
+    final stored = (await repo.getAll()).single;
+    expect(stored.tags, equals(['dart', 'flutter']));
+  });
+
+  // R-13
+  test('watchAll emits when only tags change on update', () async {
+    final initial = makeBookmark('https://example.com', tags: ['a']);
+    await repo.add(initial);
+
+    final emissions = <List<Bookmark>>[];
+    final sub = repo.watchAll().listen(emissions.add);
+    addTearDown(sub.cancel);
+
+    // Give the stream one tick to flush the initial snapshot.
+    await Future<void>.delayed(Duration.zero);
+
+    // Update only the tags (URL, title, summary, faviconUrl, createdAt unchanged).
+    final edited = initial.copyWith(tags: const ['b']);
+    await repo.update(edited);
+
+    // Allow stream propagation.
+    await Future<void>.delayed(Duration.zero);
+
+    expect(emissions.length, greaterThanOrEqualTo(2));
+    expect(emissions.last.single.tags, equals(['b']));
   });
 }

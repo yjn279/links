@@ -24,10 +24,9 @@ class TagRepositoryImpl implements TagRepository {
           ..orderBy([OrderingTerm.asc(_db.tags.name)]))
         .get();
 
-    // The UNIQUE constraint on tags.name makes a DISTINCT unnecessary, but
-    // the JOIN already produces at most one row per distinct name because each
-    // tag id is unique and referenced; de-duplicate defensively via a Set in
-    // case the query produces multiple join rows for the same tag.
+    // The JOIN produces one row per (tag, bookmark) pair — a tag shared by
+    // multiple bookmarks yields multiple rows. We deduplicate into a Set and
+    // return a sorted List<String>.
     final seen = <String>{};
     final result = <String>[];
     for (final row in rows) {

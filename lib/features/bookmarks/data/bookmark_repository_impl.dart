@@ -80,10 +80,12 @@ class BookmarkRepositoryImpl implements BookmarkRepository {
 
   @override
   Future<void> delete(String id) async {
-    await (_db.delete(_db.bookmarks)..where((b) => b.id.equals(id))).go();
-    // ON DELETE CASCADE already removed bookmark_tags rows for this id.
-    // AC-21: clean up any tags now unreferenced by any bookmark.
-    await _cleanupOrphanTags();
+    await _db.transaction(() async {
+      // ON DELETE CASCADE already removed bookmark_tags rows for this id.
+      await (_db.delete(_db.bookmarks)..where((b) => b.id.equals(id))).go();
+      // AC-21: clean up any tags now unreferenced by any bookmark.
+      await _cleanupOrphanTags();
+    });
   }
 
   // -------------------------------------------------------------------------
