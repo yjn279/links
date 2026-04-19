@@ -1,23 +1,18 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:links/features/bookmarks/presentation/bookmark_list_screen.dart';
+import 'package:links/features/bookmarks/presentation/edit_bookmark_screen.dart';
 
 final appRouter = GoRouter(
   routes: [
     GoRoute(
       path: '/',
-      builder: (context, state) => const _PlaceholderScreen(),
+      builder: (context, state) => const BookmarkListScreen(),
+    ),
+    GoRoute(
+      path: '/edit/:id',
+      builder: (context, state) => EditBookmarkScreen(
+        bookmarkId: state.pathParameters['id']!,
+      ),
     ),
   ],
 );
-
-class _PlaceholderScreen extends StatelessWidget {
-  const _PlaceholderScreen();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Links')),
-      body: const Center(child: Text('Bookmarks coming soon')),
-    );
-  }
-}
