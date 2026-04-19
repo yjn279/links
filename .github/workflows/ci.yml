@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  flutter:
+    name: Flutter — analyze & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.0'
+          channel: 'stable'
+          cache: true
+
+      - name: Flutter version
+        run: flutter --version
+
+      - name: Create missing platform folders
+        # The repository intentionally ships without ios/ (it is generated
+        # locally). `flutter create .` is idempotent: it adds missing
+        # platform scaffolds without touching lib/ or test/.
+        run: flutter create . --platforms=ios --org=com.links --project-name=links
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run build_runner (Drift / Riverpod codegen)
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Run tests
+        run: flutter test --reporter=expanded
+
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-logs
+          path: |
+            .dart_tool/
+            build/
+
+  backend:
+    name: Backend — typecheck & vitest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Run vitest
+        run: npm test
