@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
@@ -11,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { TagChipEditor } from '../../components/TagChipEditor';
+import { formatRelativeDate } from '../../src/dateFormat';
 import { useBookmarksStore } from '../../src/store';
 import type { Bookmark } from '../../src/types';
 
@@ -79,6 +81,30 @@ export default function EditBookmarkScreen() {
       style={styles.container}
     >
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+        {/* Metadata display */}
+        <View style={styles.metaRow}>
+          {original.imageUrl ? (
+            <Image
+              source={{ uri: original.imageUrl }}
+              style={styles.thumbnail}
+              contentFit="cover"
+              onError={() => {}}
+            />
+          ) : null}
+          <Image
+            source={{ uri: original.faviconUrl }}
+            style={styles.favicon}
+            contentFit="contain"
+            onError={() => {}}
+          />
+          {original.title ? (
+            <Text style={styles.metaTitle} numberOfLines={2}>
+              {original.title}
+            </Text>
+          ) : null}
+        </View>
+        <Text style={styles.metaDate}>登録日: {formatRelativeDate(original.createdAt)}</Text>
+
         <Text style={styles.label}>URL</Text>
         <TextInput
           value={url}
@@ -129,6 +155,21 @@ export default function EditBookmarkScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   body: { padding: 20, gap: 10, paddingBottom: 40 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
+  thumbnail: {
+    width: 60,
+    height: 60,
+    borderRadius: 4,
+    backgroundColor: '#eaeaea',
+  },
+  favicon: {
+    width: 28,
+    height: 28,
+    borderRadius: 4,
+    backgroundColor: '#eaeaea',
+  },
+  metaTitle: { flex: 1, fontSize: 15, fontWeight: '600', color: '#111' },
+  metaDate: { fontSize: 12, color: '#888', marginBottom: 8 },
   label: { fontSize: 14, fontWeight: '600', color: '#333' },
   input: {
     borderWidth: 1,
