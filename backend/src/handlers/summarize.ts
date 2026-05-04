@@ -1,7 +1,7 @@
 import type { Env } from '../env';
 import { jsonResponse } from '../index';
 import { fetchPage } from '../fetcher';
-import { extractText, extractTitle } from '../html_extract';
+import { extractOgImage, extractText, extractTitle } from '../html_extract';
 import { summarizeText } from '../anthropic';
 
 interface SummarizeRequest {
@@ -31,6 +31,7 @@ export async function handleSummarize(
   }
 
   const title = extractTitle(html);
+  const imageUrl = extractOgImage(html, body.url);
   const text = extractText(html);
 
   let summary: string;
@@ -42,7 +43,7 @@ export async function handleSummarize(
     return jsonResponse({ error: `anthropic error: ${msg}` }, 502);
   }
 
-  return jsonResponse({ summary, title });
+  return jsonResponse({ summary, title, imageUrl });
 }
 
 export function validateUrl(url: unknown): string | null {

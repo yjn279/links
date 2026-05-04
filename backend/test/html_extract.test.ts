@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractTitle, extractText } from '../src/html_extract';
+import { extractTitle, extractText, extractOgImage } from '../src/html_extract';
 
 describe('extractTitle', () => {
   it('returns title tag content', () => {
@@ -71,5 +71,47 @@ describe('extractText', () => {
     expect(result).not.toContain('this is a comment');
     expect(result).toContain('Before');
     expect(result).toContain('After');
+  });
+});
+
+describe('extractOgImage', () => {
+  const BASE = 'https://example.com/page';
+
+  it('returns og:image URL (property before content)', () => {
+    const html = `<meta property="og:image" content="https://example.com/og.png" />`;
+    expect(extractOgImage(html, BASE)).toBe('https://example.com/og.png');
+  });
+
+  it('returns og:image URL (content before property)', () => {
+    const html = `<meta content="https://example.com/og2.png" property="og:image" />`;
+    expect(extractOgImage(html, BASE)).toBe('https://example.com/og2.png');
+  });
+
+  it('returns twitter:image when og:image is absent', () => {
+    const html = `<meta name="twitter:image" content="https://cdn.example.com/tw.jpg" />`;
+    expect(extractOgImage(html, BASE)).toBe('https://cdn.example.com/tw.jpg');
+  });
+
+  it('prefers og:image over twitter:image', () => {
+    const html = [
+      `<meta property="og:image" content="https://example.com/og.png" />`,
+      `<meta name="twitter:image" content="https://example.com/tw.jpg" />`,
+    ].join('\n');
+    expect(extractOgImage(html, BASE)).toBe('https://example.com/og.png');
+  });
+
+  it('resolves relative URL against baseUrl', () => {
+    const html = `<meta property="og:image" content="/images/thumb.png" />`;
+    expect(extractOgImage(html, BASE)).toBe('https://example.com/images/thumb.png');
+  });
+
+  it('returns null when neither og:image nor twitter:image present', () => {
+    const html = `<html><head><title>No image</title></head></html>`;
+    expect(extractOgImage(html, BASE)).toBeNull();
+  });
+
+  it('returns null for non-http/https scheme', () => {
+    const html = `<meta property="og:image" content="data:image/png;base64,abc" />`;
+    expect(extractOgImage(html, BASE)).toBeNull();
   });
 });

@@ -123,9 +123,31 @@ describe('POST /summarize success path', () => {
       body: JSON.stringify({ url: 'https://example.com' }),
     });
     expect(response.status).toBe(200);
-    const body = await response.json() as { summary: string; title: string | null };
+    const body = await response.json() as { summary: string; title: string | null; imageUrl: string | null };
     expect(body.summary).toBe('fake summary');
     expect(body.title).toBe('Test Page');
+    expect('imageUrl' in body).toBe(true);
+    expect(body.imageUrl).toBeNull();
+  });
+
+  it('returns imageUrl extracted from og:image meta tag', async () => {
+    fetchMock
+      .get('https://example.com')
+      .intercept({ path: '/og-page', method: 'GET' })
+      .reply(
+        200,
+        '<html><head><title>OG Page</title><meta property="og:image" content="https://example.com/hero.png" /></head><body><p>Content.</p></body></html>',
+        { headers: { 'content-type': 'text/html; charset=utf-8' } },
+      );
+
+    const response = await SELF.fetch(`${BASE_URL}/summarize`, {
+      method: 'POST',
+      headers: authHeaders(VALID_TOKEN),
+      body: JSON.stringify({ url: 'https://example.com/og-page' }),
+    });
+    expect(response.status).toBe(200);
+    const body = await response.json() as { summary: string; title: string | null; imageUrl: string | null };
+    expect(body.imageUrl).toBe('https://example.com/hero.png');
   });
 });
 

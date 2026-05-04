@@ -1,3 +1,42 @@
+/**
+ * Extract the best OG image URL from HTML.
+ * Priority: og:image → twitter:image
+ * Relative URLs are resolved against baseUrl.
+ * Non-http/https schemes return null.
+ */
+export function extractOgImage(html: string, baseUrl: string): string | null {
+  // Match <meta property="og:image" content="..." /> or <meta name="twitter:image" content="..." />
+  const ogMatch = html.match(
+    /<meta[^>]+property\s*=\s*["']og:image["'][^>]+content\s*=\s*["']([^"']+)["'][^>]*>/i,
+  ) ?? html.match(
+    /<meta[^>]+content\s*=\s*["']([^"']+)["'][^>]+property\s*=\s*["']og:image["'][^>]*>/i,
+  );
+
+  const twitterMatch = html.match(
+    /<meta[^>]+name\s*=\s*["']twitter:image["'][^>]+content\s*=\s*["']([^"']+)["'][^>]*>/i,
+  ) ?? html.match(
+    /<meta[^>]+content\s*=\s*["']([^"']+)["'][^>]+name\s*=\s*["']twitter:image["'][^>]*>/i,
+  );
+
+  const raw = (ogMatch?.[1] ?? twitterMatch?.[1] ?? '').trim();
+  if (!raw) return null;
+
+  // Resolve to absolute URL
+  let resolved: string;
+  try {
+    resolved = new URL(raw, baseUrl).href;
+  } catch {
+    return null;
+  }
+
+  // Only allow http / https
+  if (!resolved.startsWith('http://') && !resolved.startsWith('https://')) {
+    return null;
+  }
+
+  return resolved;
+}
+
 export function extractTitle(html: string): string | null {
   const match = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
   if (!match) return null;
