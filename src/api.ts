@@ -46,8 +46,12 @@ export async function summarize(url: string): Promise<SummaryResult> {
       response.status,
     );
   }
-  const body = (await response.json()) as { summary: string; title: string | null };
-  return { summary: body.summary, title: body.title };
+  const body = (await response.json()) as {
+    summary: string;
+    title: string | null;
+    imageUrl?: string | null;
+  };
+  return { summary: body.summary, title: body.title, imageUrl: body.imageUrl ?? null };
 }
 
 export function isBackendConfigured(): boolean {

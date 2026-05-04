@@ -27,6 +27,19 @@ export async function getDb(): Promise<SQLite.SQLiteDatabase> {
       PRIMARY KEY (bookmark_id, tag_id)
     );
   `);
+  // Idempotent migrations — ALTER TABLE is a no-op if the column already exists.
+  try {
+    await _db.execAsync('ALTER TABLE bookmarks ADD COLUMN image_url TEXT');
+  } catch {
+    // Column already exists — ignore.
+  }
+  try {
+    await _db.execAsync(
+      "ALTER TABLE bookmarks ADD COLUMN user_id TEXT NOT NULL DEFAULT 'guest'",
+    );
+  } catch {
+    // Column already exists — ignore.
+  }
   return _db;
 }
 
@@ -36,7 +49,9 @@ type BookmarkRow = {
   title: string | null;
   summary: string | null;
   favicon_url: string;
+  image_url: string | null;
   created_at: number;
+  user_id: string;
 };
 
 function randomUuid(): string {
@@ -73,6 +88,7 @@ function normalizeTag(tag: string): string {
 export async function createBookmark(
   url: string,
   tags: string[] = [],
+  userId: string = 'guest',
 ): Promise<Bookmark> {
   if (!isValidUrl(url)) {
     throw new Error('Invalid URL: must be http or https');
@@ -84,19 +100,22 @@ export async function createBookmark(
     title: null,
     summary: null,
     faviconUrl: computeFaviconUrl(url),
+    imageUrl: null,
     createdAt: now,
     tags: Array.from(new Set(tags.map(normalizeTag).filter(Boolean))),
   };
   const db = await getDb();
   await db.withTransactionAsync(async () => {
     await db.runAsync(
-      'INSERT INTO bookmarks (id, url, title, summary, favicon_url, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+      'INSERT INTO bookmarks (id, url, title, summary, favicon_url, image_url, created_at, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       bookmark.id,
       bookmark.url,
       bookmark.title,
       bookmark.summary,
       bookmark.faviconUrl,
+      bookmark.imageUrl,
       bookmark.createdAt,
+      userId,
     );
     await insertTagLinks(db, bookmark.id, bookmark.tags);
   });
@@ -134,10 +153,11 @@ async function cleanupOrphanTags(db: SQLite.SQLiteDatabase): Promise<void> {
   );
 }
 
-export async function listBookmarks(): Promise<Bookmark[]> {
+export async function listBookmarks(userId: string = 'guest'): Promise<Bookmark[]> {
   const db = await getDb();
   const rows = await db.getAllAsync<BookmarkRow>(
-    'SELECT id, url, title, summary, favicon_url, created_at FROM bookmarks ORDER BY created_at DESC',
+    'SELECT id, url, title, summary, favicon_url, image_url, created_at, user_id FROM bookmarks WHERE user_id = ? ORDER BY created_at DESC',
+    userId,
   );
   const bookmarks: Bookmark[] = [];
   for (const row of rows) {
@@ -154,6 +174,7 @@ export async function listBookmarks(): Promise<Bookmark[]> {
       title: row.title,
       summary: row.summary,
       faviconUrl: row.favicon_url,
+      imageUrl: row.image_url,
       createdAt: row.created_at,
       tags: tags.map((t) => t.name),
     });
@@ -171,11 +192,12 @@ export async function updateBookmark(bookmark: Bookmark): Promise<void> {
   const db = await getDb();
   await db.withTransactionAsync(async () => {
     await db.runAsync(
-      'UPDATE bookmarks SET url = ?, title = ?, summary = ?, favicon_url = ? WHERE id = ?',
+      'UPDATE bookmarks SET url = ?, title = ?, summary = ?, favicon_url = ?, image_url = ? WHERE id = ?',
       bookmark.url,
       bookmark.title,
       bookmark.summary,
       computeFaviconUrl(bookmark.url),
+      bookmark.imageUrl,
       bookmark.id,
     );
     await db.runAsync('DELETE FROM bookmark_tags WHERE bookmark_id = ?', bookmark.id);
@@ -192,12 +214,15 @@ export async function deleteBookmark(id: string): Promise<void> {
   });
 }
 
-export async function listAllTags(): Promise<string[]> {
+export async function listAllTags(userId: string = 'guest'): Promise<string[]> {
   const db = await getDb();
   const rows = await db.getAllAsync<{ name: string }>(
     `SELECT DISTINCT t.name FROM tags t
      JOIN bookmark_tags bt ON bt.tag_id = t.id
+     JOIN bookmarks b ON b.id = bt.bookmark_id
+     WHERE b.user_id = ?
      ORDER BY t.name ASC`,
+    userId,
   );
   return rows.map((r) => r.name);
 }
