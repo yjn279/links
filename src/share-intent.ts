@@ -48,6 +48,6 @@ export function handleSharedUrl(url: string, isLoggedIn: boolean): void {
   if (isLoggedIn) {
     router.push({ pathname: '/(app)/add', params: { url } });
   } else {
-    router.push('/(auth)/login');
+    router.push({ pathname: '/(auth)/login', params: { pendingUrl: url } });
   }
 }

@@ -48,8 +48,8 @@ eas build --profile development --platform ios
 
 ### 5. 未ログインの場合の動作
 
-- 未ログイン状態で Share Extension 経由でアクセスした場合、ログイン画面に遷移
-- ログイン成功後は通常の一覧画面に遷移（URL は保存されない — MVP の制約）
+- 未ログイン状態で Share Extension 経由でアクセスした場合、共有 URL を `pendingUrl` クエリパラメータに乗せてログイン画面へ遷移
+- ログイン（またはサインアップ）成功後、保留していた URL を引き継いで `/(app)/add?url=<共有URL>` に自動遷移し、ブックマーク追加画面が開く
 
 ---
 
