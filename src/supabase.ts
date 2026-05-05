@@ -5,31 +5,32 @@ import { Platform } from 'react-native';
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
-// Secure Store adapter for @supabase/supabase-js v2
-const ExpoSecureStoreAdapter = {
-  getItem: (key: string): string | null | Promise<string | null> => {
-    if (Platform.OS === 'web') {
-      return null;
+const storageAdapter = Platform.OS === 'web'
+  ? {
+      getItem: (key: string) =>
+        typeof globalThis.localStorage !== 'undefined'
+          ? globalThis.localStorage.getItem(key)
+          : null,
+      setItem: (key: string, value: string) => {
+        if (typeof globalThis.localStorage !== 'undefined') {
+          globalThis.localStorage.setItem(key, value);
+        }
+      },
+      removeItem: (key: string) => {
+        if (typeof globalThis.localStorage !== 'undefined') {
+          globalThis.localStorage.removeItem(key);
+        }
+      },
     }
-    return SecureStore.getItemAsync(key);
-  },
-  setItem: (key: string, value: string): void | Promise<void> => {
-    if (Platform.OS === 'web') {
-      return;
-    }
-    return SecureStore.setItemAsync(key, value);
-  },
-  removeItem: (key: string): void | Promise<void> => {
-    if (Platform.OS === 'web') {
-      return;
-    }
-    return SecureStore.deleteItemAsync(key);
-  },
-};
+  : {
+      getItem: (key: string) => SecureStore.getItemAsync(key),
+      setItem: (key: string, value: string) => SecureStore.setItemAsync(key, value),
+      removeItem: (key: string) => SecureStore.deleteItemAsync(key),
+    };
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    storage: ExpoSecureStoreAdapter,
+    storage: storageAdapter,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
