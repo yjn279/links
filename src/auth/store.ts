@@ -33,21 +33,25 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   signIn: async (email, password) => {
     set({ loading: true, error: null });
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       set({ error: error.message, loading: false });
     } else {
-      set({ loading: false });
+      // Immediately sync session so callers of `await signIn()` see a non-null
+      // session without waiting for the async onAuthStateChange event.
+      set({ session: data.session ?? null, loading: false });
     }
   },
 
   signUp: async (email, password) => {
     set({ loading: true, error: null });
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) {
       set({ error: error.message, loading: false });
     } else {
-      set({ loading: false });
+      // session may be null when email confirmation is required; only set when
+      // Supabase returns a session (confirmation-disabled or auto-confirm mode).
+      set({ session: data.session ?? null, loading: false });
     }
   },
 
