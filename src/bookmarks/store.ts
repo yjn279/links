@@ -7,6 +7,7 @@ import {
   listTags,
   setTagsForBookmark,
 } from './api';
+import { fetchMeta } from '../meta/client';
 import type { Bookmark, Tag } from '../types';
 
 type BookmarksState = {
@@ -47,8 +48,32 @@ export const useBookmarksStore = create<BookmarksState>((set, get) => ({
   },
 
   add: async (url, userId) => {
+    // 1. Immediate save (no meta yet)
     const bookmark = await createBookmark(url, userId);
     set({ bookmarks: [bookmark, ...get().bookmarks] });
+
+    // 2. Fire-and-forget meta fetch — same pattern as old summarize in src/store.ts:43-66
+    void fetchMeta(url)
+      .then(async (meta) => {
+        if (
+          meta.title ||
+          meta.description ||
+          meta.thumbnail_url ||
+          meta.favicon_url ||
+          meta.site_name
+        ) {
+          await updateBookmark(bookmark.id, meta);
+          set({
+            bookmarks: get().bookmarks.map((b) =>
+              b.id === bookmark.id ? { ...b, ...meta } : b,
+            ),
+          });
+        }
+      })
+      .catch((e) => {
+        get().setMetaError(String(e instanceof Error ? e.message : e));
+      });
+
     return bookmark;
   },
 
