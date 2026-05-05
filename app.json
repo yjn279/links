@@ -29,14 +29,10 @@
     },
     "plugins": [
       "expo-router",
-      "expo-sqlite"
+      "expo-share-intent"
     ],
     "experiments": {
       "typedRoutes": true
-    },
-    "extra": {
-      "backendUrl": "",
-      "backendToken": ""
     }
   }
 }
