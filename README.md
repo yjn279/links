@@ -53,6 +53,8 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
 
 > Supabase の URL と anon key は Supabase ダッシュボード > Settings > API で確認できます。
 
+> **env 未設定で起動した場合:** `.env.local` が存在しないまま `npx expo start` を実行すると、アプリは「Supabase Setup Required」画面を表示します。クラッシュはしません。上記の手順で `.env.local` を作成し、Metro を再起動（`npx expo start --clear`）すると通常の画面に切り替わります。
+
 ### 3. Supabase セットアップ
 
 #### 3-a. Supabase プロジェクトの作成
