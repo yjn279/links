@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -10,34 +11,35 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { TagChipEditor } from '../../components/TagChipEditor';
-import { useBookmarksStore } from '../../src/store';
-import type { Bookmark } from '../../src/types';
+import { TagChipEditor } from '../../../components/TagChipEditor';
+import { useAuth } from '../../../src/auth/use-auth';
+import { useBookmarksStore } from '../../../src/bookmarks/store';
 
 export default function EditBookmarkScreen() {
+  const { session } = useAuth();
   const params = useLocalSearchParams<{ id: string }>();
   const id = params.id;
+
   const bookmarks = useBookmarksStore((s) => s.bookmarks);
   const existingTags = useBookmarksStore((s) => s.tags);
   const update = useBookmarksStore((s) => s.update);
+  const remove = useBookmarksStore((s) => s.remove);
 
   const original = bookmarks.find((b) => b.id === id);
 
   const [url, setUrl] = useState(original?.url ?? '');
-  const [summary, setSummary] = useState(original?.summary ?? '');
-  const [selectedTags, setSelectedTags] = useState<string[]>(original?.tags ?? []);
+  const [selectedTagNames, setSelectedTagNames] = useState<string[]>(
+    original?.tags.map((t) => t.name) ?? [],
+  );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (original) {
       setUrl(original.url);
-      setSummary(original.summary ?? '');
-      setSelectedTags(original.tags);
+      setSelectedTagNames(original.tags.map((t) => t.name));
     }
-    // We only want to re-initialize fields when the routed bookmark id
-    // changes, not on every store update that returns a new `original`
-    // reference.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [original?.id]);
 
@@ -56,21 +58,40 @@ export default function EditBookmarkScreen() {
       setError('URL is required');
       return;
     }
+    if (!session) {
+      setError('Not logged in');
+      return;
+    }
     setSaving(true);
     try {
-      const updated: Bookmark = {
-        ...original,
-        url: trimmed,
-        summary: summary.trim() ? summary.trim() : null,
-        tags: selectedTags,
-      };
-      await update(updated);
+      await update(id, { url: trimmed }, selectedTagNames, session.user.id);
       router.back();
     } catch (e) {
       setError(String(e instanceof Error ? e.message : e));
     } finally {
       setSaving(false);
     }
+  };
+
+  const onDelete = () => {
+    Alert.alert('Delete bookmark?', 'This cannot be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          setDeleting(true);
+          try {
+            await remove(id);
+            router.back();
+          } catch (e) {
+            Alert.alert('Error', String(e instanceof Error ? e.message : e));
+          } finally {
+            setDeleting(false);
+          }
+        },
+      },
+    ]);
   };
 
   return (
@@ -89,20 +110,10 @@ export default function EditBookmarkScreen() {
           style={styles.input}
         />
 
-        <Text style={styles.label}>Summary</Text>
-        <TextInput
-          value={summary}
-          onChangeText={setSummary}
-          multiline
-          numberOfLines={4}
-          style={[styles.input, styles.multiline]}
-          placeholder="(auto-generated or your own note)"
-        />
-
         <TagChipEditor
-          existingTags={existingTags}
-          selected={selectedTags}
-          onChange={setSelectedTags}
+          existingTags={existingTags.map((t) => t.name)}
+          selected={selectedTagNames}
+          onChange={setSelectedTagNames}
         />
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -113,14 +124,22 @@ export default function EditBookmarkScreen() {
           </Pressable>
           <Pressable
             onPress={onSave}
-            disabled={saving}
-            style={[styles.btn, styles.btnSave, saving && styles.btnDisabled]}
+            disabled={saving || deleting}
+            style={[styles.btn, styles.btnSave, (saving || deleting) && styles.btnDisabled]}
           >
             <Text style={[styles.btnText, styles.btnSaveText]}>
-              {saving ? 'Saving…' : 'Save'}
+              {saving ? 'Saving...' : 'Save'}
             </Text>
           </Pressable>
         </View>
+
+        <Pressable
+          onPress={onDelete}
+          disabled={saving || deleting}
+          style={[styles.btnDelete, (saving || deleting) && styles.btnDisabled]}
+        >
+          <Text style={styles.btnDeleteText}>{deleting ? 'Deleting...' : 'Delete Bookmark'}</Text>
+        </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -138,7 +157,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 15,
   },
-  multiline: { minHeight: 90, textAlignVertical: 'top' },
   error: { color: '#c0392b', fontSize: 13, marginTop: 4 },
   missing: { padding: 20, color: '#666' },
   actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 16 },
@@ -148,4 +166,12 @@ const styles = StyleSheet.create({
   btnDisabled: { opacity: 0.6 },
   btnText: { fontSize: 15, fontWeight: '600', color: '#333' },
   btnSaveText: { color: '#fff' },
+  btnDelete: {
+    marginTop: 16,
+    paddingVertical: 12,
+    borderRadius: 6,
+    backgroundColor: '#fee2e2',
+    alignItems: 'center',
+  },
+  btnDeleteText: { color: '#c0392b', fontWeight: '600', fontSize: 15 },
 });

@@ -29,14 +29,17 @@
     },
     "plugins": [
       "expo-router",
-      "expo-sqlite"
+      "expo-share-intent"
     ],
     "experiments": {
       "typedRoutes": true
     },
     "extra": {
-      "backendUrl": "",
-      "backendToken": ""
-    }
+      "router": {},
+      "eas": {
+        "projectId": "f91913fc-f0a1-4ca4-971f-5fca3187e29b"
+      }
+    },
+    "owner": "yjn279"
   }
 }

@@ -1,83 +1,216 @@
 # Links
 
-**Links** は iPhone / Android 向けのシンプルなブックマークアプリです。URL をコレクションし、AI(Anthropic Claude Haiku)で自動的にタイトルと要約を付与、タグで整理します。
+iOS/Android ネイティブのブックマークアプリ。URL を保存し、タグ付け・フィルタ・ソートで管理できます。iOS Share Extension から任意のアプリで URL を直接送ることも可能です。
 
-Expo + React Native で実装されており、**Expo Go アプリで QR コードを読むだけ**で手元のスマホからすぐに動作確認できます。
+---
 
-## MVP スコープ
+## 機能一覧
 
-- URL のブックマーク追加・一覧・削除
-- URL / 概要 / タグの編集(タグはチップ UI で既存タグから選択 + 新規入力)
-- タップで外部ブラウザで開く
-- ファビコン表示(Google `s2/favicons`)
-- AI 要約(Cloudflare Worker `/summarize` 経由で Anthropic Claude Haiku を呼ぶ)
-- SQLite による永続化
+- メールアドレス + パスワードによるサインアップ / ログイン / ログアウト
+- ブックマークの一覧・追加・編集・削除
+- タグの追加・選択・削除（ユーザーごとに独立）
+- タグ AND フィルタ + キーワード検索（タイトル / URL 部分一致）
+- 登録日ソート（新しい順 / 古い順）
+- OG メタデータ自動取得（Supabase Edge Function `fetch-meta`）
+- iOS Share Extension 対応（`expo-share-intent`）
 
-## 動作確認手順(Expo Go)
+---
 
-### 前提
+## 必要環境
 
-- [Expo Go](https://expo.dev/go) をスマホにインストール(iPhone / Android とも無料)
-- 開発マシンに Node.js 20 以上
+| ツール | バージョン |
+|--------|-----------|
+| Node.js | 18 以上 |
+| Expo CLI | `npx expo` で自動解決 |
+| Supabase CLI | 最新安定版 (`brew install supabase/tap/supabase`) |
+| EAS CLI | `npm install -g eas-cli` |
+| Apple Developer アカウント | Share Extension / TestFlight に必要 |
 
-### 手順
+---
+
+## セットアップ手順
+
+### 1. リポジトリのクローンと依存インストール
 
 ```bash
-# 1. クローンと依存インストール
 git clone https://github.com/yjn279/links.git
 cd links
 npm install --legacy-peer-deps
+```
 
-# 2. (任意)AI 要約バックエンドを設定。未設定でも手動追加・編集は動作。
-export EXPO_PUBLIC_LINKS_BACKEND_URL="https://<your-worker>.workers.dev"
-export EXPO_PUBLIC_LINKS_BACKEND_TOKEN="<shared-bearer-token>"
+### 2. 環境変数の設定
 
-# 3. Metro bundler 起動
+```bash
+cp .env.example .env.local
+```
+
+`.env.local` を開き、Supabase プロジェクトの URL と anon key を設定します。
+
+```
+EXPO_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+```
+
+> Supabase の URL と anon key は Supabase ダッシュボード > Settings > API で確認できます。
+
+### 3. Supabase セットアップ
+
+#### 3-a. Supabase プロジェクトの作成
+
+1. [https://supabase.com](https://supabase.com) にアクセスし、新規プロジェクトを作成します。
+2. プロジェクトの URL と anon key を `.env.local` に設定します（手順 2）。
+
+#### 3-b. マイグレーションの適用
+
+```bash
+# ローカル Supabase を使う場合
+supabase start
+supabase db reset
+
+# 本番 Supabase に適用する場合
+supabase link --project-ref <your-project-ref>
+supabase db push
+```
+
+または psql で直接実行:
+
+```bash
+psql <YOUR_SUPABASE_DATABASE_URL> -f supabase/migrations/20260505000000_init.sql
+```
+
+#### 3-c. Edge Function のデプロイ
+
+```bash
+supabase functions deploy fetch-meta
+```
+
+ローカル動作確認:
+
+```bash
+supabase functions serve fetch-meta
+```
+
+### 4. Expo Go での動作確認
+
+```bash
 npx expo start
 ```
 
-コンソールに表示される QR コードを Expo Go で読むとアプリが立ち上がります。
+QR コードを Expo Go アプリ（iOS / Android）でスキャンしてください。
 
-> **ネットワークについて**: 開発マシンとスマホが同じ Wi-Fi にいれば LAN モードで OK。別ネットなら `npx expo start --tunnel` で ngrok 経由に切り替えてください。
+> **注意:** Share Extension は Expo Go では動作しません。Share Extension の検証には Development Build または Preview Build が必要です（後述）。
+
+---
+
+## EAS Development Build（Share Extension を含む完全動作確認）
+
+### 前提
+
+- [EAS アカウント](https://expo.dev) の作成と `eas-cli` のログイン
+- Apple Developer Program への加入
+- Xcode のインストール
+
+### ビルドとインストール
+
+```bash
+# EAS へのログイン
+eas login
+
+# iOS Development Build（実機 / シミュレータ）
+eas build --profile development --platform ios
+
+# ビルド完了後、.ipa を実機にインストール（QR または ADB）
+```
+
+---
+
+## EAS Preview Build（TestFlight / 内部配布）
+
+```bash
+eas build --profile preview --platform ios
+```
+
+ビルド完了後、EAS ダッシュボードから TestFlight にアップロードするか、
+`eas submit --platform ios` を実行してください。
+
+---
+
+## Share Extension の確認手順
+
+> Share Extension は Expo Go では動作しません。Development Build または Preview Build が必要です。
+
+詳細は [`docs/share-extension.md`](docs/share-extension.md) を参照してください。
+
+---
+
+## 環境変数一覧
+
+| 変数名 | 説明 | 必須 |
+|--------|------|------|
+| `EXPO_PUBLIC_SUPABASE_URL` | Supabase プロジェクトの URL | はい |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Supabase の anon (public) key | はい |
+
+---
 
 ## ディレクトリ構成
 
 ```
 links/
-├── app/                    # Expo Router(ファイルベースルーティング)
-│   ├── _layout.tsx         # Stack ナビゲータ + 初回データロード
-│   ├── index.tsx           # ブックマーク一覧画面
-│   ├── add.tsx             # 追加モーダル
-│   └── edit/[id].tsx       # 編集画面
+├── app/
+│   ├── _layout.tsx              ルート Stack（セッション初期化、Share Intent リスナ）
+│   ├── index.tsx                ルートリダイレクト
+│   ├── (auth)/                  未ログイン用ルートグループ
+│   │   ├── _layout.tsx
+│   │   ├── login.tsx
+│   │   └── sign-up.tsx
+│   └── (app)/                   ログイン必須ルートグループ
+│       ├── _layout.tsx
+│       ├── index.tsx            ブックマーク一覧（フィルタ / ソート）
+│       ├── add.tsx              ブックマーク追加
+│       └── edit/[id].tsx        ブックマーク編集・削除
 ├── components/
-│   ├── BookmarkRow.tsx     # リスト行(ファビコン + タイトル + タグ)
-│   └── TagChipEditor.tsx   # チップ UI + 新規タグ入力
+│   ├── BookmarkRow.tsx          一覧行コンポーネント
+│   ├── TagChipEditor.tsx        タグ編集 UI
+│   ├── BookmarkFilters.tsx      フィルタ / ソート UI
+│   └── AuthForm.tsx             ログイン / サインアップ共通フォーム
 ├── src/
-│   ├── types.ts            # Bookmark / SummaryResult
-│   ├── db.ts               # expo-sqlite のスキーマ + CRUD + orphan tag 掃除
-│   ├── api.ts              # Cloudflare Worker の /summarize クライアント
-│   └── store.ts            # Zustand ストア(ロード / 追加 / 更新 / 削除)
-├── backend/                # Cloudflare Worker(AI 要約)
-└── assets/                 # アプリアイコン類
+│   ├── supabase.ts              Supabase クライアント（SecureStore adapter）
+│   ├── types.ts                 型定義
+│   ├── auth/
+│   │   ├── store.ts             認証状態 Zustand store
+│   │   └── use-auth.ts          認証 hook
+│   ├── bookmarks/
+│   │   ├── api.ts               Supabase CRUD 関数群
+│   │   ├── store.ts             ブックマーク Zustand store
+│   │   └── filters.ts           フィルタ / ソート純粋関数
+│   ├── meta/
+│   │   └── client.ts            Edge Function `fetch-meta` 呼び出しクライアント
+│   └── share-intent.ts          expo-share-intent ラッパ
+├── supabase/
+│   ├── config.toml              Supabase CLI 設定
+│   ├── migrations/              DB マイグレーション
+│   └── functions/
+│       └── fetch-meta/          OG メタ取得 Edge Function
+├── tests/
+│   ├── bookmarks.filters.test.ts
+│   └── meta.parse.test.ts
+├── docs/
+│   ├── rls-checklist.md         RLS 動作確認チェックリスト
+│   └── share-extension.md       Share Extension 確認手順
+├── .env.example
+└── eas.json
 ```
 
-## バックエンド(AI 要約)
+---
 
-Cloudflare Worker で `POST /summarize` を提供。ページ取得 → HTML 抽出 → Anthropic Claude Haiku に投げて 2〜3 文の要約(ページ言語で返す、不明なら日本語)とタイトルを返します。
+## RLS の動作確認
 
-```bash
-cd backend
-npm install
-wrangler secret put ANTHROPIC_API_KEY      # 実シークレット
-wrangler secret put LINKS_BACKEND_TOKEN     # 実シークレット
-wrangler deploy
-```
+[`docs/rls-checklist.md`](docs/rls-checklist.md) を参照してください。
 
-詳細は `backend/README.md` を参照してください。
+---
 
-## 今後のロードマップ
+## 既知の制限
 
-- **iOS Share Extension**: `expo-share-extension`(dev client 必須)で共有シートから直接追加
-- **タグ階層化 / ブックマークリスト**: MVP 後に検討
-- **EAS Build + TestFlight** での配信
-- **検索 / フィルタ**
+- Share Extension は Expo Go では動作しません（Development Build が必要）。
+- `expo-share-intent` が新アーキテクチャ非対応の場合は `app.json` の `newArchEnabled` を `false` にしてください。
+- Android の Share Extension は現在サポート外です。

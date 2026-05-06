@@ -1,5 +1,5 @@
-import { router } from 'expo-router';
-import { useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -9,23 +9,38 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useBookmarksStore } from '../src/store';
+import { useAuth } from '../../src/auth/use-auth';
+import { useBookmarksStore } from '../../src/bookmarks/store';
 
 export default function AddBookmarkScreen() {
+  const { session } = useAuth();
   const add = useBookmarksStore((s) => s.add);
-  const [url, setUrl] = useState('');
+  const params = useLocalSearchParams<{ url?: string }>();
+  const [url, setUrl] = useState(params.url ?? '');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // Update URL field if share-intent injects a url param after mount
+  useEffect(() => {
+    if (params.url) {
+      setUrl(params.url);
+    }
+  }, [params.url]);
+
   const onSubmit = async () => {
     setError(null);
-    if (!url.trim()) {
+    const trimmed = url.trim();
+    if (!trimmed) {
       setError('URL is required');
+      return;
+    }
+    if (!session) {
+      setError('Not logged in');
       return;
     }
     setSubmitting(true);
     try {
-      await add(url.trim());
+      await add(trimmed, session.user.id);
       router.back();
     } catch (e) {
       setError(String(e instanceof Error ? e.message : e));
@@ -51,7 +66,7 @@ export default function AddBookmarkScreen() {
           returnKeyType="done"
           onSubmitEditing={onSubmit}
           style={styles.input}
-          autoFocus
+          autoFocus={!params.url}
         />
         {error ? <Text style={styles.error}>{error}</Text> : null}
         <View style={styles.actions}>
@@ -64,7 +79,7 @@ export default function AddBookmarkScreen() {
             style={[styles.btn, styles.btnAdd, submitting && styles.btnDisabled]}
           >
             <Text style={[styles.btnText, styles.btnAddText]}>
-              {submitting ? 'Adding…' : 'Add'}
+              {submitting ? 'Adding...' : 'Add'}
             </Text>
           </Pressable>
         </View>

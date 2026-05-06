@@ -19,6 +19,7 @@
     "backend",
     "dist",
     "web-build",
-    ".expo"
+    ".expo",
+    "supabase/functions"
   ]
 }
