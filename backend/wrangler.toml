@@ -1,0 +1,13 @@
+name = "links-backend"
+main = "src/index.ts"
+compatibility_date = "2024-12-30"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+ANTHROPIC_MODEL = "claude-haiku-4-5"
+
+# Secrets (set via wrangler secret put):
+#   ANTHROPIC_API_KEY
+#   LINKS_BACKEND_TOKEN
+#
+# For local vitest runs these are injected via vitest.config.ts miniflare bindings.
