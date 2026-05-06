@@ -4,11 +4,16 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
+import { SunburstBackdrop } from './ui/SunburstBackdrop';
+import { colors, spacing } from '../src/theme/tokens';
+import { type as typePre } from '../src/theme/typography';
 
 type Mode = 'login' | 'sign-up';
 
@@ -36,28 +41,39 @@ export function AuthForm({ mode, onSubmit, onSwitchMode, loading, error }: Props
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}
     >
-      <View style={styles.body}>
+      {/* Background decoration */}
+      <View style={styles.backdropWrap} pointerEvents="none">
+        <SunburstBackdrop size={400} opacity={0.12} />
+      </View>
+
+      <ScrollView
+        contentContainerStyle={styles.body}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Display title */}
         <Text style={styles.title}>{isLogin ? 'Log In' : 'Sign Up'}</Text>
+        <Text style={styles.subtitle}>
+          {isLogin ? 'Welcome back.' : 'Create your account.'}
+        </Text>
 
         <Text style={styles.label}>Email</Text>
-        <TextInput
+        <Input
           value={email}
           onChangeText={setEmail}
           placeholder="you@example.com"
           autoCapitalize="none"
           autoCorrect={false}
           keyboardType="email-address"
-          style={styles.input}
           editable={!loading}
         />
 
         <Text style={styles.label}>Password</Text>
-        <TextInput
+        <Input
           value={password}
           onChangeText={setPassword}
           placeholder="••••••••"
           secureTextEntry
-          style={styles.input}
           editable={!loading}
           onSubmitEditing={handleSubmit}
           returnKeyType="done"
@@ -65,56 +81,74 @@ export function AuthForm({ mode, onSubmit, onSwitchMode, loading, error }: Props
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        <Pressable
+        <Button
+          variant="primary"
+          label={isLogin ? 'Log In' : 'Create Account'}
           onPress={handleSubmit}
           disabled={loading}
-          style={[styles.btn, styles.btnPrimary, loading && styles.btnDisabled]}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.btnPrimaryText}>{isLogin ? 'Log In' : 'Create Account'}</Text>
-          )}
-        </Pressable>
+          loading={loading}
+          style={styles.primaryBtn}
+        />
 
-        <Pressable onPress={onSwitchMode} disabled={loading} style={styles.switchBtn}>
+        {/* Loading indicator (inside button handles it, keep this for compat) */}
+        {loading && false ? <ActivityIndicator color={colors.deepGold} /> : null}
+
+        <Pressable
+          onPress={onSwitchMode}
+          disabled={loading}
+          style={styles.switchBtn}
+        >
           <Text style={styles.switchText}>
             {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Log in'}
           </Text>
         </Pressable>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1, backgroundColor: colors.honeyCream },
+  backdropWrap: {
+    position: 'absolute',
+    top: -60,
+    right: -60,
+    opacity: 0.6,
+  },
   body: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
-    padding: 24,
-    gap: 10,
+    padding: spacing.xl,
+    gap: spacing.sm,
   },
-  title: { fontSize: 28, fontWeight: '700', color: '#111', marginBottom: 8 },
-  label: { fontSize: 14, fontWeight: '600', color: '#333', marginTop: 4 },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 11,
-    fontSize: 15,
+  title: {
+    ...typePre.displayTitle,
+    color: colors.warmBlack,
+    marginBottom: spacing.xs,
   },
-  error: { color: '#c0392b', fontSize: 13, marginTop: 4 },
-  btn: {
-    marginTop: 8,
-    paddingVertical: 13,
-    borderRadius: 8,
-    alignItems: 'center',
+  subtitle: {
+    ...typePre.body,
+    color: colors.greige,
+    marginBottom: spacing.lg,
   },
-  btnPrimary: { backgroundColor: '#3f51b5' },
-  btnDisabled: { opacity: 0.6 },
-  btnPrimaryText: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  switchBtn: { marginTop: 16, alignItems: 'center' },
-  switchText: { color: '#3f51b5', fontSize: 14 },
+  label: {
+    ...typePre.label,
+    color: colors.greige,
+    marginBottom: spacing.xs - 2,
+    marginTop: spacing.xs,
+  },
+  error: {
+    ...typePre.bodySmall,
+    color: colors.terracotta,
+    paddingHorizontal: spacing.xs,
+  },
+  primaryBtn: {
+    marginTop: spacing.sm,
+  },
+  switchBtn: { marginTop: spacing.base, alignItems: 'center' },
+  switchText: {
+    ...typePre.bodySmall,
+    color: colors.deepGold,
+    textDecorationLine: 'underline',
+  },
 });
