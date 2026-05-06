@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { colors, radii, spacing } from '../src/theme/tokens';
+import { type as typePre } from '../src/theme/typography';
 
 type Props = {
   existingTags: string[];
@@ -45,7 +47,11 @@ export function TagChipEditor({ existingTags, selected, onChange }: Props) {
               <Pressable
                 key={tag}
                 onPress={() => toggle(tag)}
-                style={[styles.chip, isSelected && styles.chipSelected]}
+                style={({ pressed }) => [
+                  styles.chip,
+                  isSelected && styles.chipSelected,
+                  pressed && styles.chipPressed,
+                ]}
               >
                 <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
                   {tag}
@@ -60,13 +66,17 @@ export function TagChipEditor({ existingTags, selected, onChange }: Props) {
           value={draft}
           onChangeText={setDraft}
           placeholder="new tag"
+          placeholderTextColor={colors.greige}
           autoCapitalize="none"
           onSubmitEditing={submitDraft}
           returnKeyType="done"
           style={styles.input}
         />
-        <Pressable onPress={submitDraft} style={styles.addBtn}>
-          <Text style={styles.addBtnText}>Add</Text>
+        <Pressable
+          onPress={submitDraft}
+          style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.8 }]}
+        >
+          <Text style={styles.addBtnText}>+ Add</Text>
         </Pressable>
       </View>
     </View>
@@ -74,36 +84,46 @@ export function TagChipEditor({ existingTags, selected, onChange }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { gap: 8 },
-  label: { fontSize: 14, fontWeight: '600', color: '#333' },
-  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  empty: { color: '#888', fontSize: 13, fontStyle: 'italic' },
+  container: { gap: spacing.sm },
+  label: { ...typePre.label, color: colors.warmBlack },
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  empty: { ...typePre.bodySmall, color: colors.greige, fontStyle: 'italic' },
   chip: {
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 16,
-    backgroundColor: '#eee',
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md - 2,
+    borderRadius: radii.pill,
+    backgroundColor: colors.cream,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: colors.goldHairline,
   },
-  chipSelected: { backgroundColor: '#3f51b5', borderColor: '#3f51b5' },
-  chipText: { fontSize: 13, color: '#333' },
-  chipTextSelected: { color: '#fff', fontWeight: '600' },
-  inputRow: { flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 4 },
+  chipSelected: {
+    backgroundColor: colors.buttermilk,
+    borderColor: colors.deepGold,
+  },
+  chipPressed: { opacity: 0.7 },
+  chipText: { ...typePre.bodySmall, color: colors.warmBlack },
+  chipTextSelected: {
+    ...typePre.bodySmall,
+    color: colors.deepGold,
+    fontFamily: typePre.label.fontFamily,
+  },
+  inputRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center', marginTop: spacing.xs },
   input: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    fontSize: 14,
+    ...typePre.body,
+    color: colors.warmBlack,
+    borderWidth: 1.5,
+    borderColor: colors.goldHairline,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md - 2,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.cream,
   },
   addBtn: {
-    backgroundColor: '#3f51b5',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 6,
+    backgroundColor: colors.amber,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.md,
   },
-  addBtnText: { color: '#fff', fontWeight: '600' },
+  addBtnText: { ...typePre.label, color: colors.warmBlack },
 });

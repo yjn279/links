@@ -1,16 +1,21 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
+import { useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
+  ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
+import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
+import { SectionHeading } from '../../components/ui/SectionHeading';
 import { useAuth } from '../../src/auth/use-auth';
 import { useBookmarksStore } from '../../src/bookmarks/store';
+import { colors, radii, spacing } from '../../src/theme/tokens';
+import { type as typePre } from '../../src/theme/typography';
 
 export default function AddBookmarkScreen() {
   const { session } = useAuth();
@@ -54,9 +59,15 @@ export default function AddBookmarkScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}
     >
-      <View style={styles.body}>
-        <Text style={styles.label}>URL</Text>
-        <TextInput
+      <ScrollView
+        contentContainerStyle={styles.body}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <SectionHeading style={styles.formHeading}>Add a URL</SectionHeading>
+
+        <Text style={styles.fieldLabel}>URL</Text>
+        <Input
           value={url}
           onChangeText={setUrl}
           placeholder="https://example.com"
@@ -65,47 +76,62 @@ export default function AddBookmarkScreen() {
           keyboardType="url"
           returnKeyType="done"
           onSubmitEditing={onSubmit}
-          style={styles.input}
           autoFocus={!params.url}
         />
+
         {error ? <Text style={styles.error}>{error}</Text> : null}
+
         <View style={styles.actions}>
-          <Pressable onPress={() => router.back()} style={[styles.btn, styles.btnCancel]}>
-            <Text style={styles.btnText}>Cancel</Text>
-          </Pressable>
-          <Pressable
+          <Button
+            variant="ghost"
+            label="Cancel"
+            onPress={() => router.back()}
+            style={styles.actionBtn}
+          />
+          <Button
+            variant="primary"
+            label={submitting ? 'Adding…' : 'Add'}
             onPress={onSubmit}
-            disabled={submitting}
-            style={[styles.btn, styles.btnAdd, submitting && styles.btnDisabled]}
-          >
-            <Text style={[styles.btnText, styles.btnAddText]}>
-              {submitting ? 'Adding...' : 'Add'}
-            </Text>
-          </Pressable>
+            loading={submitting}
+            style={styles.actionBtn}
+          />
         </View>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  body: { padding: 20, gap: 10 },
-  label: { fontSize: 14, fontWeight: '600', color: '#333' },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 15,
+  container: { flex: 1, backgroundColor: colors.cream },
+  body: {
+    padding: spacing.lg,
+    gap: spacing.md,
+    paddingBottom: spacing.xxxl,
   },
-  error: { color: '#c0392b', fontSize: 13, marginTop: 4 },
-  actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 8 },
-  btn: { paddingHorizontal: 18, paddingVertical: 10, borderRadius: 6 },
-  btnCancel: { backgroundColor: '#eee' },
-  btnAdd: { backgroundColor: '#3f51b5' },
-  btnDisabled: { opacity: 0.6 },
-  btnText: { fontSize: 15, fontWeight: '600', color: '#333' },
-  btnAddText: { color: '#fff' },
+  formHeading: {
+    marginBottom: spacing.sm,
+  },
+  fieldLabel: {
+    ...typePre.label,
+    color: colors.greige,
+    marginBottom: spacing.xs - 2,
+    marginTop: spacing.xs,
+  },
+  error: {
+    ...typePre.bodySmall,
+    color: colors.terracotta,
+    paddingHorizontal: spacing.xs,
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.goldHairline,
+    paddingTop: spacing.base,
+  },
+  actionBtn: {
+    flex: 1,
+    borderRadius: radii.lg,
+  },
 });

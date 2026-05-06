@@ -1,5 +1,7 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { Tag } from '../src/types';
+import { colors, radii, spacing } from '../src/theme/tokens';
+import { type as typePre } from '../src/theme/typography';
 
 type Props = {
   allTags: Tag[];
@@ -33,7 +35,7 @@ export function BookmarkFilters({
       >
         <Pressable
           onPress={onToggleSort}
-          style={[styles.chip, styles.sortChip]}
+          style={({ pressed }) => [styles.chip, styles.sortChip, pressed && styles.chipPressed]}
         >
           <Text style={styles.sortChipText}>
             {sortAsc ? 'Oldest first' : 'Newest first'}
@@ -46,7 +48,11 @@ export function BookmarkFilters({
             <Pressable
               key={tag.id}
               onPress={() => toggleTag(tag.id)}
-              style={[styles.chip, selected && styles.chipSelected]}
+              style={({ pressed }) => [
+                styles.chip,
+                selected && styles.chipSelected,
+                pressed && styles.chipPressed,
+              ]}
             >
               <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
                 #{tag.name}
@@ -60,24 +66,31 @@ export function BookmarkFilters({
 }
 
 const styles = StyleSheet.create({
-  container: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#e0e0e0' },
+  container: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.goldHairline,
+  },
   row: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    gap: 8,
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.sm,
+    gap: spacing.sm,
   },
   chip: {
-    paddingVertical: 5,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    backgroundColor: '#eee',
+    paddingVertical: spacing.xs + 1,
+    paddingHorizontal: spacing.md - 2,
+    borderRadius: radii.pill,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: colors.goldHairline,
+    backgroundColor: colors.cream,
   },
-  chipSelected: { backgroundColor: '#3f51b5', borderColor: '#3f51b5' },
-  chipText: { fontSize: 13, color: '#333' },
-  chipTextSelected: { color: '#fff', fontWeight: '600' },
-  sortChip: { backgroundColor: '#f0f0f0', borderColor: '#bbb' },
-  sortChipText: { fontSize: 13, color: '#555', fontWeight: '600' },
+  chipSelected: {
+    backgroundColor: colors.buttermilk,
+    borderColor: colors.deepGold,
+  },
+  chipPressed: { opacity: 0.7 },
+  chipText: { ...typePre.bodySmall, color: colors.warmBlack },
+  chipTextSelected: { ...typePre.bodySmall, color: colors.deepGold, fontFamily: typePre.label.fontFamily },
+  sortChip: { backgroundColor: colors.buttermilk, borderColor: colors.goldHairline },
+  sortChipText: { ...typePre.bodySmall, color: colors.greige, fontFamily: typePre.label.fontFamily },
 });
