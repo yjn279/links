@@ -79,6 +79,11 @@ describe('ShareIntentRoute', () => {
     mockLoading = false;
     lastRedirectHref = null;
     mockResetShareIntent.mockClear();
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it('returns null while loading', () => {
@@ -111,17 +116,50 @@ describe('ShareIntentRoute', () => {
     });
   });
 
-  it('(c-1) no URL + session → Redirect to /(app)', () => {
+  it('(c-1) no URL + session → renders null until timeout, then Redirect to /(app)', () => {
     mockShareIntent = null;
     mockSession = { user: 'u1' };
-    render();
+    const tree = render();
+    // Before the timeout fires, render holds (no redirect yet)
+    expect(lastRedirectHref).toBeNull();
+    expect(tree.toJSON()).toBeNull();
+    // Advance past the 2s timeout
+    act(() => {
+      jest.advanceTimersByTime(2100);
+    });
     expect(lastRedirectHref).toBe('/(app)');
   });
 
-  it('(c-2) no URL + no session → Redirect to /(auth)/login', () => {
+  it('(c-2) no URL + no session → renders null until timeout, then Redirect to /(auth)/login', () => {
     mockShareIntent = null;
     mockSession = null;
-    render();
+    const tree = render();
+    expect(lastRedirectHref).toBeNull();
+    expect(tree.toJSON()).toBeNull();
+    act(() => {
+      jest.advanceTimersByTime(2100);
+    });
     expect(lastRedirectHref).toBe('/(auth)/login');
+  });
+
+  it('(d) async share intent: webUrl arrives before timeout → Redirect to /(app)/add', () => {
+    // Simulate cold-start: native module hasn't fired yet at first render.
+    mockShareIntent = null;
+    mockSession = { user: 'u1' };
+    const tree = render();
+    expect(lastRedirectHref).toBeNull();
+    expect(tree.toJSON()).toBeNull();
+
+    // Native module fires before the 2s timeout: shareIntent fills, re-render.
+    const url = 'https://example.com/late';
+    mockShareIntent = { webUrl: url };
+    act(() => {
+      jest.advanceTimersByTime(500);
+      tree.update(<ShareIntentRoute />);
+    });
+    expect(lastRedirectHref).toEqual({
+      pathname: '/(app)/add',
+      params: { url },
+    });
   });
 });
