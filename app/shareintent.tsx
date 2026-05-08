@@ -1,6 +1,6 @@
-import { Redirect } from 'expo-router';
+import { router } from 'expo-router';
 import { useShareIntentContext } from 'expo-share-intent';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuthStore } from '../src/auth/store';
 import { resolveShareIntentTarget } from '../src/share-intent';
 
@@ -9,67 +9,64 @@ import { resolveShareIntentTarget } from '../src/share-intent';
  * Landed here via +native-intent.tsx redirectSystemPath → '/shareintent'.
  *
  * The native share-intent module fills `shareIntent` asynchronously after the
- * route mounts (it reads the App Group UserDefaults via an event triggered
- * from `useLinkingURL`). If we synchronously decide on first render, we
- * navigate away before `webUrl` arrives and the shared URL is lost. We
- * therefore wait until `hasShareIntent` becomes true OR a short timeout
- * elapses before performing the declarative <Redirect> to:
+ * route mounts. We navigate imperatively from a useEffect so that
+ *   (a) the navigation only fires once even if the component re-renders, and
+ *   (b) re-renders triggered by `resetShareIntent` cannot issue a competing
+ *       <Redirect> that overrides the first one.
+ *
+ * Targets:
  *   (a) URL shared + logged in  → /(app)/add?url=...
  *   (b) URL shared + logged out → /(auth)/login?pendingUrl=...
- *   (c) No URL (timeout / direct navigation) → home or login fallback
+ *   (c) No URL within timeout / direct navigation → home or login fallback
  */
 const SHARE_INTENT_TIMEOUT_MS = 2000;
 
 export default function ShareIntentRoute() {
-  const { shareIntent, resetShareIntent, hasShareIntent } =
-    useShareIntentContext();
+  const { shareIntent, resetShareIntent } = useShareIntentContext();
   const loading = useAuthStore((s) => s.loading);
   const session = useAuthStore((s) => s.session);
   const [timedOut, setTimedOut] = useState(false);
-
-  // Wait for the native module to populate shareIntent. Cap the wait so a
-  // direct navigation to /shareintent (no share intent in flight) doesn't
-  // hang forever.
-  useEffect(() => {
-    if (hasShareIntent) return;
-    const t = setTimeout(() => setTimedOut(true), SHARE_INTENT_TIMEOUT_MS);
-    return () => clearTimeout(t);
-  }, [hasShareIntent]);
-
-  // Reset native module state once we've consumed the share intent (or
-  // given up after the timeout). Auth must also be settled to avoid racing
-  // with the auth-loading branch below.
-  useEffect(() => {
-    if (!loading && (hasShareIntent || timedOut)) {
-      resetShareIntent();
-    }
-  }, [loading, hasShareIntent, timedOut, resetShareIntent]);
-
-  // Wait until auth is resolved AND (share intent ready OR timed out)
-  if (loading || (!hasShareIntent && !timedOut)) {
-    return null;
-  }
+  const navigatedRef = useRef(false);
 
   const webUrl = shareIntent?.webUrl ?? null;
-  const target = webUrl ? resolveShareIntentTarget(webUrl, !!session) : null;
 
-  if (target) {
-    if (target.pathname === '/(app)/add') {
-      const { url } = target.params as { url: string };
-      return <Redirect href={{ pathname: '/(app)/add', params: { url } }} />;
+  // Imperative navigation. Fires exactly once when both:
+  //   - auth state has resolved (loading === false), AND
+  //   - we have a webUrl OR we've timed out waiting for one.
+  useEffect(() => {
+    if (loading || navigatedRef.current) return;
+    if (!webUrl && !timedOut) return;
+
+    navigatedRef.current = true;
+
+    if (webUrl) {
+      const target = resolveShareIntentTarget(webUrl, !!session);
+      if (target?.pathname === '/(app)/add') {
+        router.replace({
+          pathname: '/(app)/add',
+          params: target.params as Record<string, string>,
+        });
+      } else if (target) {
+        router.replace({
+          pathname: '/(auth)/login',
+          params: target.params as Record<string, string>,
+        });
+      }
+      // Reset only AFTER scheduling navigation, so a re-render here is harmless.
+      resetShareIntent();
+      return;
     }
-    // /(auth)/login with pendingUrl
-    const { pendingUrl } = target.params as { pendingUrl: string };
-    return (
-      <Redirect
-        href={{ pathname: '/(auth)/login', params: { pendingUrl } }}
-      />
-    );
-  }
 
-  // Fallback: no share URL — go home or login
-  if (session) {
-    return <Redirect href="/(app)" />;
-  }
-  return <Redirect href="/(auth)/login" />;
+    // Fallback after timeout: no share intent ever arrived.
+    router.replace(session ? '/(app)' : '/(auth)/login');
+  }, [loading, webUrl, timedOut, session, resetShareIntent]);
+
+  // Timeout: if shareIntent never arrives, give up after 2s.
+  useEffect(() => {
+    if (webUrl) return;
+    const t = setTimeout(() => setTimedOut(true), SHARE_INTENT_TIMEOUT_MS);
+    return () => clearTimeout(t);
+  }, [webUrl]);
+
+  return null;
 }

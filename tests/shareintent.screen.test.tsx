@@ -1,83 +1,83 @@
 /**
- * Component tests for app/shareintent.tsx
+ * Component tests for app/shareintent.tsx — imperative router.replace
+ * pattern with timeout fallback. The route always returns null and navigates
+ * via router.replace in a useEffect, gated by a navigatedRef so we fire
+ * exactly once even if the component re-renders.
  *
- * Tests the three Redirect branches:
- *   (a) shareIntent.webUrl present + session → /(app)/add?url=...
- *   (b) shareIntent.webUrl present + no session → /(auth)/login?pendingUrl=...
- *   (c) No shareIntent.webUrl → fallback to /(app) (session) or /(auth)/login (no session)
- *
- * Mocks: useShareIntentContext (expo-share-intent), useAuthStore (src/auth/store),
- *        expo-router (Redirect)
+ * Branches covered:
+ *   (a) URL shared + logged in  → router.replace('/(app)/add', { url })
+ *   (b) URL shared + logged out → router.replace('/(auth)/login', { pendingUrl })
+ *   (c) Cold-start: no URL yet → wait until shareIntent arrives, then (a)/(b)
+ *   (d-1) No URL + session  → after timeout: router.replace('/(app)')
+ *   (d-2) No URL + no session → after timeout: router.replace('/(auth)/login')
+ *   (e) navigatedRef gate: only fires once even on re-render after reset
  */
 
 import React from 'react';
-import { act } from 'react-test-renderer';
-import renderer from 'react-test-renderer';
+import { act, create } from 'react-test-renderer';
 
-// ---- expo-router mock -------------------------------------------------------
-let lastRedirectHref: unknown = null;
-
-jest.mock('expo-router', () => ({
-  Redirect: ({ href }: { href: unknown }) => {
-    lastRedirectHref = href;
-    return null;
-  },
-}));
-
-// ---- expo-share-intent mock -------------------------------------------------
-let mockShareIntent: { webUrl: string | null } | null = null;
+let mockShareIntent: { webUrl?: string | null } | null = null;
 const mockResetShareIntent = jest.fn();
 
 jest.mock('expo-share-intent', () => ({
   useShareIntentContext: () => ({
     shareIntent: mockShareIntent,
-    hasShareIntent: mockShareIntent?.webUrl != null,
+    hasShareIntent: !!mockShareIntent?.webUrl,
     resetShareIntent: mockResetShareIntent,
     error: null,
     isReady: true,
   }),
-  ShareIntentProvider: ({ children }: { children: React.ReactNode }) =>
-    children,
-  getShareExtensionKey: () => 'linksShareKey',
-  useShareIntent: () => ({
-    shareIntent: null,
-    isReady: true,
-    resetShareIntent: () => {},
-    error: null,
-  }),
 }));
 
-// ---- src/auth/store mock ----------------------------------------------------
-let mockSession: object | null = null;
+const replaceCalls: {
+  pathname: string;
+  params: Record<string, string> | undefined;
+}[] = [];
+
+jest.mock('expo-router', () => ({
+  router: {
+    replace: (
+      arg: string | { pathname: string; params?: Record<string, string> },
+    ) => {
+      if (typeof arg === 'string') {
+        replaceCalls.push({ pathname: arg, params: undefined });
+      } else {
+        replaceCalls.push({ pathname: arg.pathname, params: arg.params });
+      }
+    },
+  },
+}));
+
 let mockLoading = false;
+let mockSession: { user: string } | null = null;
 
 jest.mock('../src/auth/store', () => ({
   useAuthStore: (
-    selector: (s: { session: object | null; loading: boolean }) => unknown
-  ) => selector({ session: mockSession, loading: mockLoading }),
+    selector: (s: {
+      loading: boolean;
+      session: { user: string } | null;
+    }) => unknown,
+  ) => selector({ loading: mockLoading, session: mockSession }),
 }));
-
-// ---- supabase mock (transitive dep) -----------------------------------------
-jest.mock('../src/supabase', () => ({ supabase: {} }));
 
 import ShareIntentRoute from '../app/shareintent';
 
-function render() {
-  lastRedirectHref = null;
-  mockResetShareIntent.mockClear();
-  let instance!: renderer.ReactTestRenderer;
+// react-test-renderer needs an act() wrapper around mount so the initial
+// useEffect (which performs router.replace) runs synchronously.
+const render = () => {
+  let tree!: ReturnType<typeof create>;
   act(() => {
-    instance = renderer.create(<ShareIntentRoute />);
+    tree = create(<ShareIntentRoute />);
   });
-  return instance;
-}
+  return tree;
+};
 
 describe('ShareIntentRoute', () => {
   beforeEach(() => {
     mockShareIntent = null;
     mockSession = null;
     mockLoading = false;
-    lastRedirectHref = null;
+    replaceCalls.length = 0;
     mockResetShareIntent.mockClear();
     jest.useFakeTimers();
   });
@@ -86,80 +86,88 @@ describe('ShareIntentRoute', () => {
     jest.useRealTimers();
   });
 
-  it('returns null while loading', () => {
+  it('returns null while auth is loading', () => {
     mockLoading = true;
-    mockShareIntent = { webUrl: 'https://example.com' };
-    mockSession = { user: 'u1' };
     const tree = render();
     expect(tree.toJSON()).toBeNull();
+    expect(replaceCalls).toHaveLength(0);
   });
 
-  it('(a) URL + session → Redirect to /(app)/add with url param', () => {
-    const url = 'https://example.com/article';
-    mockShareIntent = { webUrl: url };
+  it('(a) URL + session → router.replace /(app)/add with url param', () => {
+    mockShareIntent = { webUrl: 'https://example.com/x' };
     mockSession = { user: 'u1' };
     render();
-    expect(lastRedirectHref).toEqual({
-      pathname: '/(app)/add',
-      params: { url },
-    });
+    expect(replaceCalls).toEqual([
+      { pathname: '/(app)/add', params: { url: 'https://example.com/x' } },
+    ]);
+    expect(mockResetShareIntent).toHaveBeenCalledTimes(1);
   });
 
-  it('(b) URL + no session → Redirect to /(auth)/login with pendingUrl param', () => {
-    const url = 'https://example.com/article';
-    mockShareIntent = { webUrl: url };
+  it('(b) URL + no session → router.replace /(auth)/login with pendingUrl', () => {
+    mockShareIntent = { webUrl: 'https://example.com/x' };
     mockSession = null;
     render();
-    expect(lastRedirectHref).toEqual({
-      pathname: '/(auth)/login',
-      params: { pendingUrl: url },
-    });
+    expect(replaceCalls).toEqual([
+      {
+        pathname: '/(auth)/login',
+        params: { pendingUrl: 'https://example.com/x' },
+      },
+    ]);
   });
 
-  it('(c-1) no URL + session → renders null until timeout, then Redirect to /(app)', () => {
+  it('(c) cold-start: no URL initially → waits, then navigates when shareIntent arrives', () => {
     mockShareIntent = null;
     mockSession = { user: 'u1' };
     const tree = render();
-    // Before the timeout fires, render holds (no redirect yet)
-    expect(lastRedirectHref).toBeNull();
-    expect(tree.toJSON()).toBeNull();
-    // Advance past the 2s timeout
-    act(() => {
-      jest.advanceTimersByTime(2100);
-    });
-    expect(lastRedirectHref).toBe('/(app)');
-  });
+    expect(replaceCalls).toHaveLength(0);
 
-  it('(c-2) no URL + no session → renders null until timeout, then Redirect to /(auth)/login', () => {
-    mockShareIntent = null;
-    mockSession = null;
-    const tree = render();
-    expect(lastRedirectHref).toBeNull();
-    expect(tree.toJSON()).toBeNull();
-    act(() => {
-      jest.advanceTimersByTime(2100);
-    });
-    expect(lastRedirectHref).toBe('/(auth)/login');
-  });
-
-  it('(d) async share intent: webUrl arrives before timeout → Redirect to /(app)/add', () => {
-    // Simulate cold-start: native module hasn't fired yet at first render.
-    mockShareIntent = null;
-    mockSession = { user: 'u1' };
-    const tree = render();
-    expect(lastRedirectHref).toBeNull();
-    expect(tree.toJSON()).toBeNull();
-
-    // Native module fires before the 2s timeout: shareIntent fills, re-render.
-    const url = 'https://example.com/late';
-    mockShareIntent = { webUrl: url };
+    // Native module fills the share intent before the timeout fires.
+    mockShareIntent = { webUrl: 'https://example.com/late' };
     act(() => {
       jest.advanceTimersByTime(500);
       tree.update(<ShareIntentRoute />);
     });
-    expect(lastRedirectHref).toEqual({
-      pathname: '/(app)/add',
-      params: { url },
+    expect(replaceCalls).toEqual([
+      { pathname: '/(app)/add', params: { url: 'https://example.com/late' } },
+    ]);
+  });
+
+  it('(d-1) no URL + session → after timeout, fallback to /(app)', () => {
+    mockShareIntent = null;
+    mockSession = { user: 'u1' };
+    const tree = render();
+    expect(replaceCalls).toHaveLength(0);
+    act(() => {
+      jest.advanceTimersByTime(2100);
+      tree.update(<ShareIntentRoute />);
     });
+    expect(replaceCalls).toEqual([{ pathname: '/(app)', params: undefined }]);
+  });
+
+  it('(d-2) no URL + no session → after timeout, fallback to /(auth)/login', () => {
+    mockShareIntent = null;
+    mockSession = null;
+    const tree = render();
+    act(() => {
+      jest.advanceTimersByTime(2100);
+      tree.update(<ShareIntentRoute />);
+    });
+    expect(replaceCalls).toEqual([
+      { pathname: '/(auth)/login', params: undefined },
+    ]);
+  });
+
+  it('(e) navigatedRef: re-rendering after reset does not fire a second navigation', () => {
+    mockShareIntent = { webUrl: 'https://example.com/x' };
+    mockSession = { user: 'u1' };
+    const tree = render();
+    expect(replaceCalls).toHaveLength(1);
+
+    // Simulate the reset clearing the share intent and a forced re-render.
+    mockShareIntent = null;
+    act(() => {
+      tree.update(<ShareIntentRoute />);
+    });
+    expect(replaceCalls).toHaveLength(1);
   });
 });
