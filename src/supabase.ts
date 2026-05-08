@@ -25,27 +25,39 @@ const storageAdapter = Platform.OS === 'web'
       removeItem: (key: string) => SecureStore.deleteItemAsync(key),
     };
 
-/** Returns true when both required env vars are non-empty. */
+// Public demo Supabase project. Anyone who clones the repo can run the app
+// with zero setup — sign-up creates a per-user account whose data is isolated
+// by Row Level Security. To use your own project instead, set
+// EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY in `.env.local`.
+const DEMO_SUPABASE_URL = 'https://tsyojfeunxqpvxpgknrq.supabase.co';
+const DEMO_SUPABASE_ANON_KEY = 'sb_publishable_KokgJ-OE4J17qMASTsaUDw_N0YFZ1QH';
+
+function resolveUrl(): string {
+  const env = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
+  return env.length > 0 ? env : DEMO_SUPABASE_URL;
+}
+
+function resolveAnonKey(): string {
+  const env = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
+  return env.length > 0 ? env : DEMO_SUPABASE_ANON_KEY;
+}
+
+/** Returns true when a usable URL+key pair is available (env or demo fallback). */
 export function isSupabaseConfigured(): boolean {
-  const url = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
-  const key = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
-  return url.length > 0 && key.length > 0;
+  return resolveUrl().length > 0 && resolveAnonKey().length > 0;
 }
 
 let _client: SupabaseClient | null = null;
 
 /**
  * Returns the Supabase client, creating it on first call.
- * Throws if env vars are not configured — callers must guard with
- * `isSupabaseConfigured()` before calling this in a boot context.
+ * Falls back to the public demo project when env vars are unset, so callers
+ * (including the boot-time guard) get a working client by default.
  */
 export function getSupabase(): SupabaseClient {
   if (_client) return _client;
 
-  const url = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
-  const key = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
-
-  _client = createClient(url, key, {
+  _client = createClient(resolveUrl(), resolveAnonKey(), {
     auth: {
       storage: storageAdapter,
       autoRefreshToken: true,

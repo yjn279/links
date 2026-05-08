@@ -38,22 +38,24 @@ cd links
 npm install --legacy-peer-deps
 ```
 
-### 2. 環境変数の設定
+### 2. 環境変数の設定（任意）
+
+`.env.local` を作らなくても、アプリは公開 demo Supabase プロジェクトに接続して動作します。サインアップすると Row Level Security によってユーザーごとにデータが分離されます。
+
+自前の Supabase プロジェクトを使いたい場合のみ、以下を実行します。
 
 ```bash
 cp .env.example .env.local
 ```
 
-`.env.local` を開き、Supabase プロジェクトの URL と anon key を設定します。
+`.env.local` を開いて URL と anon key を埋めてください。
 
 ```
 EXPO_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
 ```
 
-> Supabase の URL と anon key は Supabase ダッシュボード > Settings > API で確認できます。
-
-> **env 未設定で起動した場合:** `.env.local` が存在しないまま `npx expo start` を実行すると、アプリは「Supabase Setup Required」画面を表示します。クラッシュはしません。上記の手順で `.env.local` を作成し、Metro を再起動（`npx expo start --clear`）すると通常の画面に切り替わります。
+> Supabase の URL と anon key は Supabase ダッシュボード > Settings > API で確認できます。値を変更したら Metro を再起動（`npx expo start --clear`）してください。
 
 ### 3. Supabase セットアップ
 
@@ -149,8 +151,8 @@ eas build --profile preview --platform ios
 
 | 変数名 | 説明 | 必須 |
 |--------|------|------|
-| `EXPO_PUBLIC_SUPABASE_URL` | Supabase プロジェクトの URL | はい |
-| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Supabase の anon (public) key | はい |
+| `EXPO_PUBLIC_SUPABASE_URL` | Supabase プロジェクトの URL（未設定なら公開 demo プロジェクトにフォールバック） | いいえ |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Supabase の anon (public) key（未設定なら公開 demo プロジェクトにフォールバック） | いいえ |
 
 ---
 
