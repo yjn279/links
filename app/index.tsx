@@ -1,6 +1,16 @@
 import { router } from 'expo-router';
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import {
+  Alert,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { BookmarkRow } from '../components/BookmarkRow';
+import { filterBookmarks } from '../src/filter';
 import { useBookmarksStore } from '../src/store';
 
 export default function BookmarkListScreen() {
@@ -9,6 +19,8 @@ export default function BookmarkListScreen() {
   const error = useBookmarksStore((s) => s.error);
   const lastSummarizeError = useBookmarksStore((s) => s.lastSummarizeError);
   const remove = useBookmarksStore((s) => s.remove);
+
+  const [query, setQuery] = useState('');
 
   const confirmDelete = (id: string) => {
     Alert.alert('Delete bookmark?', 'This cannot be undone.', [
@@ -34,6 +46,9 @@ export default function BookmarkListScreen() {
     );
   }
 
+  const filtered = filterBookmarks(bookmarks, query);
+  const queryIsEmpty = query.trim() === '';
+
   return (
     <View style={styles.container}>
       {lastSummarizeError ? (
@@ -43,15 +58,31 @@ export default function BookmarkListScreen() {
           </Text>
         </View>
       ) : null}
-      {bookmarks.length === 0 ? (
+      <TextInput
+        style={styles.searchInput}
+        value={query}
+        onChangeText={setQuery}
+        placeholder="Search bookmarks..."
+        placeholderTextColor="#999"
+        autoCapitalize="none"
+        autoCorrect={false}
+        returnKeyType="search"
+        clearButtonMode="while-editing"
+      />
+      {queryIsEmpty && bookmarks.length === 0 ? (
         <View style={styles.empty}>
           <Text style={styles.emptyIcon}>🔖</Text>
           <Text style={styles.emptyTitle}>No bookmarks yet</Text>
           <Text style={styles.emptyHint}>Tap the + button to add your first URL.</Text>
         </View>
+      ) : !queryIsEmpty && filtered.length === 0 ? (
+        <View style={styles.empty}>
+          <Text style={styles.emptyTitle}>No matches</Text>
+          <Text style={styles.emptyHint}>Try a different search term.</Text>
+        </View>
       ) : (
         <FlatList
-          data={bookmarks}
+          data={filtered}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <BookmarkRow bookmark={item} onDelete={confirmDelete} />
@@ -67,6 +98,17 @@ export default function BookmarkListScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
+  searchInput: {
+    margin: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    fontSize: 15,
+    color: '#111',
+  },
   empty: {
     flex: 1,
     justifyContent: 'center',
