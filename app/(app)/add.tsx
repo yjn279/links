@@ -27,6 +27,17 @@ export default function AddBookmarkScreen() {
     }
   }, [params.url]);
 
+  // When opened via the iOS share extension the navigation stack only
+  // contains /(app)/add, so router.back() throws GO_BACK_unhandled. Fall
+  // back to replacing with the bookmark list.
+  const dismiss = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(app)');
+    }
+  };
+
   const onSubmit = async () => {
     setError(null);
     const trimmed = url.trim();
@@ -41,7 +52,7 @@ export default function AddBookmarkScreen() {
     setSubmitting(true);
     try {
       await add(trimmed, session.user.id);
-      router.back();
+      dismiss();
     } catch (e) {
       setError(String(e instanceof Error ? e.message : e));
     } finally {
@@ -70,7 +81,7 @@ export default function AddBookmarkScreen() {
         />
         {error ? <Text style={styles.error}>{error}</Text> : null}
         <View style={styles.actions}>
-          <Pressable onPress={() => router.back()} style={[styles.btn, styles.btnCancel]}>
+          <Pressable onPress={dismiss} style={[styles.btn, styles.btnCancel]}>
             <Text style={styles.btnText}>Cancel</Text>
           </Pressable>
           <Pressable
