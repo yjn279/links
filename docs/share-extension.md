@@ -66,6 +66,78 @@ eas build --profile development --platform ios
 1. `expo-share-intent` のバージョン互換性を確認（`package.json` 参照）
 2. `app.json` の `plugins` に `"expo-share-intent"` が含まれていることを確認
 
+### No script URL provided（JS バンドルが見つからない）
+
+**症状**: X (Twitter) などから Links に URL を共有しようとすると、次のエラーが発生してアプリが開かない。
+
+```
+No script URL provided. Make sure the packager is running or you have embedded a JS bundle in your application bundle.
+unsanitizedScriptURLString = (null)
+```
+
+**原因**: このエラーは Share Extension 自体が出しているのではなく、**Share Extension 経由で起動されたメインアプリ側**が JS バンドルを解決できなかったときに発生する。
+
+`expo-share-intent` v5 の iOS Share Extension は純粋な UIViewController + Storyboard 実装であり、React Native ブリッジを一切ロードしない。Extension は共有 URL を App Group の UserDefaults に書き込み、`links://dataUrl=linksShareKey#weburl` というカスタム URL スキームでメインアプリを起動するだけである。エラーはその後、起動されたメインアプリの `AppDelegate`（Expo 生成物）が `RCTBundleURLProvider` を呼び出す際に発生する。
+
+**対処: Development Build の場合**
+
+Metro packager が起動していないことが最多の原因である。
+
+1. Mac と iOS デバイスが同一 Wi-Fi ネットワークにあることを確認する。
+2. Metro を起動する。
+   ```bash
+   npx expo start --dev-client
+   ```
+3. ネットワーク環境が複雑な場合は tunnel モードを試す。
+   ```bash
+   npx expo start --dev-client --tunnel
+   ```
+4. デバイス上の iOS 設定アプリ → Links → 開発者メニューで Metro の URL が現在の IP と一致しているか確認する。
+
+**対処: Preview Build の場合**
+
+`eas build --profile preview` で生成された `.ipa` に `main.jsbundle` が埋め込まれていないことが原因である。
+
+1. EAS でビルドを再実行する。
+   ```bash
+   eas build --profile preview --platform ios
+   ```
+2. ビルドが完了したら EAS ダッシュボードからダウンロードし、ローカルで確認する。
+   ```bash
+   unzip Links.ipa
+   ls Payload/Links.app/main.jsbundle
+   ```
+   ファイルが存在すれば埋め込み済みである。
+
+**対処: Release Build の場合**
+
+Preview と同様に `main.jsbundle` の組み込み漏れ、または Provisioning Profile / Entitlements 不整合が原因である。
+
+1. EAS でリリースビルドを再実行する。
+   ```bash
+   eas build --profile production --platform ios
+   ```
+2. Xcode Organizer（Window → Organizer → Crashes）で crash log を確認し、スタックトレース内の `RCTBundleURLProvider` または `RCTBridge` を検索する。
+
+**対処: 共通手順**
+
+いずれのビルドタイプでも、ネイティブの再生成が解決することがある。
+
+```bash
+# ネイティブを完全再生成（手動で ios/ を編集していた場合はその変更が消える）
+npx expo prebuild --clean
+
+# Pods を再インストール
+cd ios && rm -rf Pods Podfile.lock && pod install && cd ..
+```
+
+**X (Twitter) だけで再現する場合の追加確認**
+
+- X が渡す URL に非 ASCII 文字や特殊文字が含まれ、Share Extension が生成するカスタム URL スキームが不正になっている可能性がある（仮説）。
+- Console.app または Xcode で実機ログをフィルタして確認する。
+  - Mac と USB 接続時: Xcode → Window → Devices and Simulators → デバイス → Open Console → フィルタ `process:Links`
+  - `"redirectToHostApp canOpenURL KO"` というログが出ていれば URL スキームの解決に失敗している。
+
 ---
 
 ## 参考コマンド

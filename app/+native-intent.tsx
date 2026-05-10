@@ -19,7 +19,8 @@ export function redirectSystemPath({
       return '/shareintent';
     }
     return path;
-  } catch {
+  } catch (e) {
+    console.warn('[share-intent] getShareExtensionKey() threw — falling back to original path.', e);
     return path;
   }
 }
