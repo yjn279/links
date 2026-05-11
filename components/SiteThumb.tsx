@@ -63,7 +63,7 @@ export function SiteThumb({ thumbKey, site, favorite, onToggleFav, imageUrl }: P
 
 const styles = StyleSheet.create({
   thumb: {
-    aspectRatio: 16 / 10,
+    aspectRatio: 1200 / 630,
     overflow: 'hidden',
     position: 'relative',
   },
