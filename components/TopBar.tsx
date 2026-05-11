@@ -11,6 +11,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from './Icon';
 import { color, radius, sp, typeScale } from '../src/theme/tokens';
 
@@ -26,9 +27,10 @@ export function TopBar({ onMenu, onAdd, query, setQuery, userInitial = 'L' }: Pr
   const [menuPressed, setMenuPressed] = useState(false);
   const [bellPressed, setBellPressed] = useState(false);
   const [fabPressed, setFabPressed] = useState(false);
+  const insets = useSafeAreaInsets();
 
   return (
-    <View style={styles.topbar}>
+    <View style={[styles.topbar, { paddingTop: insets.top + sp[1] }]}>
       {/* Hamburger */}
       <Pressable
         onPress={onMenu}
@@ -93,10 +95,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     paddingHorizontal: 4,
-    paddingVertical: 14,
+    paddingBottom: 14,
     backgroundColor: color.paper,
     zIndex: 5,
     // sticky handled by parent ScrollView stickyHeaderIndices or position
+    // paddingTop is applied inline via useSafeAreaInsets() to handle Dynamic Island
   },
   icBtn: {
     width: 40,

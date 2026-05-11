@@ -35,12 +35,14 @@ export function BookmarkCard({ bookmark, favorite, onToggleFav, onOpen }: Props)
     <Pressable
       onPress={() => onOpen?.(bookmark)}
       style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+      testID="bm-card"
     >
       <SiteThumb
         thumbKey={thumbKey}
         site={site}
         favorite={favorite}
         onToggleFav={() => onToggleFav(bookmark.id)}
+        imageUrl={bookmark.thumbnail_url}
       />
       <View style={styles.body}>
         <Text style={styles.title} numberOfLines={2}>
@@ -73,6 +75,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     overflow: 'hidden',
     flexDirection: 'column',
+    flex: 1,
     ...elevation.e1,
   },
   cardPressed: {
@@ -84,6 +87,7 @@ const styles = StyleSheet.create({
     paddingBottom: 14,
     paddingHorizontal: 14,
     minWidth: 0,
+    flex: 1,
   },
   title: {
     ...typeScale.h3,

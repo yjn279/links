@@ -3,8 +3,8 @@
  * Mirrors design-spec/ui_kits/links-app/BookmarkCard.jsx thumbnail section + styles.css .bm-thumb*
  */
 import { LinearGradient } from 'expo-linear-gradient';
-import React from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Icon } from './Icon';
 import { color, radius, THUMB_GRADIENTS, ThumbKey } from '../src/theme/tokens';
 
@@ -13,10 +13,12 @@ type Props = {
   site: string;
   favorite: boolean;
   onToggleFav: () => void;
+  imageUrl?: string | null;
 };
 
-export function SiteThumb({ thumbKey, site, favorite, onToggleFav }: Props) {
+export function SiteThumb({ thumbKey, site, favorite, onToggleFav, imageUrl }: Props) {
   const gradientColors = THUMB_GRADIENTS[thumbKey] ?? THUMB_GRADIENTS.violet;
+  const [imageError, setImageError] = useState(false);
 
   return (
     <View style={styles.thumb}>
@@ -26,6 +28,14 @@ export function SiteThumb({ thumbKey, site, favorite, onToggleFav }: Props) {
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFillObject}
       />
+      {imageUrl && !imageError ? (
+        <Image
+          source={{ uri: imageUrl }}
+          style={StyleSheet.absoluteFillObject}
+          resizeMode="cover"
+          onError={() => setImageError(true)}
+        />
+      ) : null}
       {/* glow */}
       <View style={styles.glow} pointerEvents="none" />
 

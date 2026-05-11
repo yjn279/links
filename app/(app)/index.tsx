@@ -158,10 +158,12 @@ export default function LibraryScreen() {
           {/* Section head */}
           <View style={styles.sectionHead}>
             <View style={styles.sectionTitle}>
-              <Text style={styles.libH2}>Bookmarks</Text>
-              <Text style={styles.libCount}>{filtered.length} items</Text>
+              <Text style={styles.libH2} numberOfLines={1}>Bookmarks</Text>
+              <Text style={styles.libCount} numberOfLines={1}>{filtered.length} items</Text>
             </View>
-            <ViewToggle mode={viewMode} onChange={setViewMode} />
+            <View style={styles.viewToggleWrap}>
+              <ViewToggle mode={viewMode} onChange={setViewMode} />
+            </View>
           </View>
 
           {/* Bookmark list */}
@@ -250,18 +252,26 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sectionTitle: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'baseline',
     gap: 8,
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  viewToggleWrap: {
+    flexShrink: 0,
   },
   libH2: {
     ...typeScale.h3,
     fontSize: 18,
     color: color.ink,
+    flexShrink: 0,
   },
   libCount: {
     ...typeScale.caption,
     color: color.ink3,
+    flexShrink: 1,
   },
   gridContainer: {
     gap: 12,
@@ -269,6 +279,7 @@ const styles = StyleSheet.create({
   gridRow: {
     flexDirection: 'row',
     gap: 12,
+    alignItems: 'stretch',
   },
   gridCell: {
     flex: 1,
