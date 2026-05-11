@@ -14,6 +14,7 @@ import {
 import { TagChipEditor } from '../../../components/TagChipEditor';
 import { useAuth } from '../../../src/auth/use-auth';
 import { useBookmarksStore } from '../../../src/bookmarks/store';
+import { color, radius, sp, typeScale } from '../../../src/theme/tokens';
 
 export default function EditBookmarkScreen() {
   const { session } = useAuth();
@@ -146,32 +147,34 @@ export default function EditBookmarkScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  body: { padding: 20, gap: 10, paddingBottom: 40 },
-  label: { fontSize: 14, fontWeight: '600', color: '#333' },
+  container: { flex: 1, backgroundColor: color.paper },
+  body: { padding: sp[5], gap: 10, paddingBottom: 40 },
+  label: { ...typeScale.label, color: color.ink2, textTransform: 'uppercase' },
   input: {
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 6,
+    borderColor: color.line2,
+    borderRadius: radius.sm,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    fontSize: 15,
+    ...typeScale.body,
+    color: color.ink,
+    backgroundColor: color.card,
   },
-  error: { color: '#c0392b', fontSize: 13, marginTop: 4 },
-  missing: { padding: 20, color: '#666' },
+  error: { ...typeScale.caption, color: color.catDesign, marginTop: 4 },
+  missing: { padding: sp[5], ...typeScale.body, color: color.ink3 },
   actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 16 },
-  btn: { paddingHorizontal: 18, paddingVertical: 10, borderRadius: 6 },
-  btnCancel: { backgroundColor: '#eee' },
-  btnSave: { backgroundColor: '#3f51b5' },
+  btn: { paddingHorizontal: 18, paddingVertical: 10, borderRadius: radius.sm },
+  btnCancel: { backgroundColor: color.paper2 },
+  btnSave: { backgroundColor: color.amber },
   btnDisabled: { opacity: 0.6 },
-  btnText: { fontSize: 15, fontWeight: '600', color: '#333' },
-  btnSaveText: { color: '#fff' },
+  btnText: { ...typeScale.button, color: color.ink },
+  btnSaveText: { color: color.ink },
   btnDelete: {
     marginTop: 16,
     paddingVertical: 12,
-    borderRadius: 6,
+    borderRadius: radius.sm,
     backgroundColor: '#fee2e2',
     alignItems: 'center',
   },
-  btnDeleteText: { color: '#c0392b', fontWeight: '600', fontSize: 15 },
+  btnDeleteText: { ...typeScale.button, color: color.catDesign },
 });
