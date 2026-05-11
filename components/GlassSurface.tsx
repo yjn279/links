@@ -29,6 +29,10 @@ export function GlassSurface({
   const bg = tint === 'strong' ? glass.tintStrong : glass.tint;
 
   if (Platform.OS === 'web') {
+    const webStyle: Record<string, unknown> = {
+      backdropFilter: `saturate(140%) blur(${glass.blurAmount}px)`,
+      WebkitBackdropFilter: `saturate(140%) blur(${glass.blurAmount}px)`,
+    };
     return (
       <View
         style={[
@@ -36,12 +40,10 @@ export function GlassSurface({
           {
             borderRadius,
             backgroundColor: bg,
-            // @ts-expect-error web-only style properties
-            backdropFilter: `saturate(140%) blur(${glass.blurAmount}px)`,
-            WebkitBackdropFilter: `saturate(140%) blur(${glass.blurAmount}px)`,
             borderColor: glass.border,
             borderWidth: 1,
           },
+          webStyle,
           style,
         ]}
       >

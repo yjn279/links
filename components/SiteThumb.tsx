@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
     // We fake the radial glow with a View that has opacity
     ...(Platform.OS === 'web'
       ? {
-          background:
+          backgroundImage:
             'radial-gradient(220px 120px at 75% 0%, rgba(255,255,255,0.30) 0%, transparent 60%)',
         }
       : { backgroundColor: 'rgba(255,255,255,0.10)' }),
