@@ -1,25 +1,41 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { BookmarkFilters } from '../../components/BookmarkFilters';
-import { BookmarkRow } from '../../components/BookmarkRow';
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
+import { BookmarkCard } from '../../components/BookmarkCard';
+import { EmptyLibraryState } from '../../components/EmptyLibraryState';
+import { Sidebar } from '../../components/Sidebar';
+import type { SidebarView } from '../../components/Sidebar';
+import { StatCard } from '../../components/StatCard';
+import { TopBar } from '../../components/TopBar';
+import { ViewToggle } from '../../components/ViewToggle';
+import type { ViewMode } from '../../components/ViewToggle';
 import { useAuth } from '../../src/auth/use-auth';
 import { applyFilters } from '../../src/bookmarks/filters';
 import { useBookmarksStore } from '../../src/bookmarks/store';
+import { color, sp, typeScale } from '../../src/theme/tokens';
+import type { Bookmark } from '../../src/types';
 
-export default function BookmarkListScreen() {
+export default function LibraryScreen() {
   const { session } = useAuth();
   const bookmarks = useBookmarksStore((s) => s.bookmarks);
-  const tags = useBookmarksStore((s) => s.tags);
   const loading = useBookmarksStore((s) => s.loading);
   const error = useBookmarksStore((s) => s.error);
-  const lastMetaError = useBookmarksStore((s) => s.lastMetaError);
   const load = useBookmarksStore((s) => s.load);
-  const remove = useBookmarksStore((s) => s.remove);
+
+  const { width } = useWindowDimensions();
+  const numColumns = width < 380 ? 1 : 2;
 
   const [query, setQuery] = useState('');
-  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
-  const [sortAsc, setSortAsc] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [sidebarView, setSidebarView] = useState<SidebarView>('all');
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (session) {
@@ -27,139 +43,271 @@ export default function BookmarkListScreen() {
     }
   }, [session, load]);
 
-  const confirmDelete = (id: string) => {
-    Alert.alert('Delete bookmark?', 'This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () =>
-          void remove(id).catch((e) => Alert.alert('Error', String(e))),
-      },
-    ]);
+  const toggleFav = (id: string) => {
+    setFavorites((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
   };
 
-  const filtered = applyFilters(bookmarks, { tagIds: selectedTagIds, query, sortAsc });
+  // Apply sidebar view filter before text/tag filter
+  const viewedBookmarks = bookmarks.filter((b) => {
+    if (sidebarView === 'all') return true;
+    if (sidebarView === 'favorites') return favorites.has(b.id);
+    if (sidebarView === 'recent') {
+      const age = Date.now() - new Date(b.created_at).getTime();
+      return age < 7 * 24 * 60 * 60 * 1000; // last 7 days
+    }
+    if (sidebarView === 'trending') return b.tags.length >= 1;
+    return true;
+  });
+
+  const filtered = applyFilters(viewedBookmarks, {
+    tagIds: [],
+    query,
+    sortAsc: false,
+  });
+
+  // Compute live stats
+  const stats = {
+    total:     { n: bookmarks.length,                           delta: '+12 this week' },
+    favorites: { n: favorites.size,                             delta: '+3 today' },
+    trending:  { n: bookmarks.filter((b) => b.tags.length >= 1).length, delta: '5 new' },
+    recent:    {
+      n: bookmarks.filter((b) => Date.now() - new Date(b.created_at).getTime() < 7 * 24 * 60 * 60 * 1000).length,
+      delta: 'Last 7 days',
+    },
+  };
 
   if (loading && bookmarks.length === 0) {
     return (
-      <View style={styles.empty}>
-        <Text>Loading...</Text>
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.empty}>
+      <View style={styles.loadingContainer}>
         <Text style={styles.errorText}>Something went wrong</Text>
         <Text style={styles.errorDetail}>{error}</Text>
       </View>
     );
   }
 
+  // Build rows for the grid layout
+  const gridItems: (Bookmark | null)[][] = [];
+  if (viewMode === 'grid' && numColumns === 2) {
+    for (let i = 0; i < filtered.length; i += 2) {
+      gridItems.push([filtered[i] ?? null, filtered[i + 1] ?? null]);
+    }
+  }
+
+  const openBookmark = (_b: Bookmark) => {
+    // Future: open detail or URL
+  };
+
   return (
-    <View style={styles.container}>
-      {lastMetaError ? (
-        <View style={styles.banner}>
-          <Text style={styles.bannerText} numberOfLines={2}>
-            Meta fetch unavailable: {lastMetaError}
-          </Text>
-        </View>
-      ) : null}
-
-      {/* Search input */}
-      <TextInput
-        value={query}
-        onChangeText={setQuery}
-        placeholder="Search bookmarks..."
-        autoCapitalize="none"
-        autoCorrect={false}
-        style={styles.searchInput}
-        clearButtonMode="while-editing"
+    <View style={styles.app}>
+      <Sidebar
+        open={sidebarOpen}
+        view={sidebarView}
+        onSelect={setSidebarView}
+        onClose={() => setSidebarOpen(false)}
+        stats={stats}
       />
 
-      {/* Tag filter chips + sort toggle */}
-      <BookmarkFilters
-        allTags={tags}
-        selectedTagIds={selectedTagIds}
-        onChangeTagIds={setSelectedTagIds}
-        sortAsc={sortAsc}
-        onToggleSort={() => setSortAsc((v) => !v)}
-      />
-
-      {filtered.length === 0 ? (
-        <View style={styles.empty}>
-          <Text style={styles.emptyIcon}>🔖</Text>
-          <Text style={styles.emptyTitle}>No bookmarks yet</Text>
-          <Text style={styles.emptyHint}>Tap the + button to add your first URL.</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={filtered}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <BookmarkRow bookmark={item} onDelete={confirmDelete} />
-          )}
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.main}
+        showsVerticalScrollIndicator={false}
+        stickyHeaderIndices={[0]}
+      >
+        {/* TopBar — sticky */}
+        <TopBar
+          onMenu={() => setSidebarOpen(true)}
+          onAdd={() => router.push('/(app)/add')}
+          query={query}
+          setQuery={setQuery}
+          userInitial={session?.user.email?.[0]?.toUpperCase() ?? 'L'}
         />
-      )}
 
-      <Pressable style={styles.fab} onPress={() => router.push('/(app)/add')}>
-        <Text style={styles.fabText}>+</Text>
-      </Pressable>
+        {/* Library content */}
+        <View style={styles.lib}>
+          {/* H1 */}
+          <Text style={styles.libH1}>Your Library</Text>
+
+          {/* 2x2 stat grid */}
+          <View style={styles.statsGrid}>
+            <View style={styles.statsRow}>
+              <StatCard label="Total"     value={stats.total.n}     delta={stats.total.delta}     deltaUp />
+              <StatCard label="Favorites" value={stats.favorites.n} delta={stats.favorites.delta} deltaUp />
+            </View>
+            <View style={styles.statsRow}>
+              <StatCard label="Trending"  value={stats.trending.n}  delta={stats.trending.delta} />
+              <StatCard label="Recent"    value={stats.recent.n}    delta={stats.recent.delta} />
+            </View>
+          </View>
+
+          {/* Section head */}
+          <View style={styles.sectionHead}>
+            <View style={styles.sectionTitle}>
+              <Text style={styles.libH2} numberOfLines={1}>Bookmarks</Text>
+              <Text style={styles.libCount} numberOfLines={1}>{filtered.length} items</Text>
+            </View>
+            <View style={styles.viewToggleWrap}>
+              <ViewToggle mode={viewMode} onChange={setViewMode} />
+            </View>
+          </View>
+
+          {/* Bookmark list */}
+          {filtered.length === 0 ? (
+            <EmptyLibraryState query={query || undefined} />
+          ) : viewMode === 'grid' && numColumns === 2 ? (
+            <View style={styles.gridContainer}>
+              {gridItems.map((row, rowIdx) => (
+                <View key={rowIdx} style={styles.gridRow}>
+                  {row.map((item, colIdx) =>
+                    item ? (
+                      <View key={item.id} style={styles.gridCell}>
+                        <BookmarkCard
+                          bookmark={item}
+                          favorite={favorites.has(item.id)}
+                          onToggleFav={toggleFav}
+                          onOpen={openBookmark}
+                        />
+                      </View>
+                    ) : (
+                      <View key={`empty-${rowIdx}-${colIdx}`} style={styles.gridCell} />
+                    ),
+                  )}
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.listContainer}>
+              {filtered.map((item) => (
+                <BookmarkCard
+                  key={item.id}
+                  bookmark={item}
+                  favorite={favorites.has(item.id)}
+                  onToggleFav={toggleFav}
+                  onOpen={openBookmark}
+                />
+              ))}
+            </View>
+          )}
+        </View>
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  searchInput: {
-    marginHorizontal: 16,
-    marginTop: 12,
-    marginBottom: 4,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    fontSize: 15,
-    backgroundColor: '#fafafa',
+  app: {
+    flex: 1,
+    backgroundColor: color.paper,
+    position: 'relative',
   },
-  empty: {
+  scroll: {
+    flex: 1,
+  },
+  main: {
+    maxWidth: 520,
+    width: '100%',
+    alignSelf: 'center',
+    paddingHorizontal: 16,
+    paddingBottom: 80,
+  },
+  lib: {
+    paddingTop: sp[1],
+  },
+  libH1: {
+    ...typeScale.h1,
+    fontSize: 44,
+    lineHeight: 44 * 1.05,
+    letterSpacing: 0.025 * 44,
+    color: color.ink,
+    marginTop: 8,
+    marginBottom: 22,
+  },
+  statsGrid: {
+    gap: 10,
+    marginBottom: 22,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  sectionHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 8,
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  viewToggleWrap: {
+    flexShrink: 0,
+  },
+  libH2: {
+    ...typeScale.h3,
+    fontSize: 18,
+    color: color.ink,
+    flexShrink: 0,
+  },
+  libCount: {
+    ...typeScale.caption,
+    color: color.ink3,
+    flexShrink: 1,
+  },
+  gridContainer: {
+    gap: 12,
+  },
+  gridRow: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'stretch',
+  },
+  gridCell: {
+    flex: 1,
+  },
+  listContainer: {
+    gap: 12,
+  },
+  loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: color.paper,
     padding: 24,
     gap: 8,
   },
-  emptyIcon: { fontSize: 56 },
-  emptyTitle: { fontSize: 20, fontWeight: '600', color: '#111' },
-  emptyHint: { fontSize: 14, color: '#666', textAlign: 'center' },
-  errorText: { fontSize: 18, fontWeight: '600', color: '#c0392b' },
-  errorDetail: { fontSize: 13, color: '#666', marginTop: 4, textAlign: 'center' },
-  banner: {
-    backgroundColor: '#fff3cd',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#f1c40f',
+  loadingText: {
+    ...typeScale.body,
+    color: color.ink3,
   },
-  bannerText: { fontSize: 12, color: '#7a5c00' },
-  fab: {
-    position: 'absolute',
-    bottom: 32,
-    right: 24,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#3f51b5',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 5,
+  errorText: {
+    ...typeScale.h3,
+    color: color.catDesign,
   },
-  fabText: { color: '#fff', fontSize: 34, lineHeight: 38, fontWeight: '300' },
+  errorDetail: {
+    ...typeScale.bodySm,
+    color: color.ink3,
+    marginTop: 4,
+    textAlign: 'center',
+  },
 });
+

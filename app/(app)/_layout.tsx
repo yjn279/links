@@ -1,9 +1,9 @@
 import { Redirect, Stack } from 'expo-router';
-import { Pressable, Text } from 'react-native';
 import { useAuth } from '../../src/auth/use-auth';
+import { color } from '../../src/theme/tokens';
 
 export default function AppLayout() {
-  const { session, loading, signOut } = useAuth();
+  const { session, loading } = useAuth();
 
   // Not authenticated — redirect to login
   if (!loading && !session) {
@@ -11,23 +11,21 @@ export default function AppLayout() {
   }
 
   return (
-    <Stack>
-      <Stack.Screen
-        name="index"
-        options={{
-          title: 'Links',
-          headerRight: () => (
-            <Pressable onPress={() => void signOut()} hitSlop={8} style={{ marginRight: 4 }}>
-              <Text style={{ color: '#3f51b5', fontSize: 15 }}>Log Out</Text>
-            </Pressable>
-          ),
-        }}
-      />
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: color.paper } }}>
+      <Stack.Screen name="index" />
       <Stack.Screen
         name="add"
-        options={{ presentation: 'modal', title: 'Add Bookmark' }}
+        options={{ presentation: 'modal', headerShown: false }}
       />
-      <Stack.Screen name="edit/[id]" options={{ title: 'Edit Bookmark' }} />
+      <Stack.Screen
+        name="edit/[id]"
+        options={{
+          headerShown: true,
+          title: 'Edit Bookmark',
+          headerStyle: { backgroundColor: color.paper },
+          headerTintColor: color.ink,
+        }}
+      />
     </Stack>
   );
 }
