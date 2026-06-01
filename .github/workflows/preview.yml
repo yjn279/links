@@ -1,0 +1,138 @@
+name: Preview
+
+# PR を作成・更新すると、その時点のコードをブランチプレビューとして配信する。
+#   - iOS    : production プロファイルで store ビルドし TestFlight へ自動 submit する。
+#   - Android: preview プロファイルで内部配布 APK をビルドし、インストール用リンクを PR にコメントする。
+# 実ビルドと submit は EAS のサーバ側で実行されるため ( --no-wait ) 、
+# GitHub Actions はビルドをキューに積んでリンクを返すだけで完了する。進捗は EAS と TestFlight 側で追う。
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review, synchronize]
+  workflow_dispatch:
+
+concurrency:
+  group: preview-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  preview:
+    name: Build branch preview ( iOS TestFlight + Android APK )
+    runs-on: ubuntu-latest
+    # draft PR ではビルドしない ( EAS のビルド枠を無駄にしないため )
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      EAS_ACCOUNT: yjn279
+      EAS_PROJECT: links
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@c7b66a9c327a43a8fa7c0158e7f30d6040d2481e # v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      # PR タイトルは攻撃者が制御できる入力なので、シェルにも GITHUB_OUTPUT にも直接展開しない。
+      # env 経由で受け取り、改行を除去した 1 行に畳んでから heredoc で書き出す ( output injection 防止 ) 。
+      - name: Compose build message
+        id: msg
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_REF: ${{ github.head_ref }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          REF_NAME: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+        run: |
+          if [ -n "$PR_NUMBER" ]; then
+            raw="PR #${PR_NUMBER} · ${HEAD_REF} · ${PR_TITLE}"
+          else
+            raw="${REF_NAME} · ${SHA}"
+          fi
+          message=$(printf '%s' "$raw" | tr '\r\n' '  ')
+          {
+            echo "message<<EOF"
+            echo "$message"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      # message はシェルへ直接展開せず env 経由で渡し、変数参照する ( injection 防止 ) 。
+      # --json --no-wait はビルドをキューしてビルド ID を含む JSON を返すだけで完了する。
+      - name: Queue iOS build ( TestFlight )
+        id: ios
+        env:
+          MSG: ${{ steps.msg.outputs.message }}
+        run: |
+          eas build \
+            --platform ios \
+            --profile production \
+            --non-interactive \
+            --no-wait \
+            --auto-submit \
+            --message "$MSG" \
+            --json > ios-build.json
+          id=$(jq -r '.[0].id // empty' ios-build.json)
+          echo "url=https://expo.dev/accounts/${EAS_ACCOUNT}/projects/${EAS_PROJECT}/builds/${id}" >> "$GITHUB_OUTPUT"
+
+      - name: Queue Android build ( internal distribution )
+        id: android
+        env:
+          MSG: ${{ steps.msg.outputs.message }}
+        run: |
+          eas build \
+            --platform android \
+            --profile preview \
+            --non-interactive \
+            --no-wait \
+            --message "$MSG" \
+            --json > android-build.json
+          id=$(jq -r '.[0].id // empty' android-build.json)
+          echo "url=https://expo.dev/accounts/${EAS_ACCOUNT}/projects/${EAS_PROJECT}/builds/${id}" >> "$GITHUB_OUTPUT"
+
+      - name: Comment preview links on PR
+        if: ${{ always() && github.event_name == 'pull_request' }}
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          script: |
+            const iosUrl = ${{ toJSON(steps.ios.outputs.url) }};
+            const androidUrl = ${{ toJSON(steps.android.outputs.url) }};
+            const marker = '<!-- eas-preview -->';
+            const line = (ok, label, url, hint) =>
+              ok && url && !url.endsWith('/builds/')
+                ? `- **${label}**: [ビルドを開く](${url}) — ${hint}`
+                : `- **${label}**: ビルドのキューに失敗しました。Actions のログを確認してください。`;
+            const body = [
+              marker,
+              '## 📱 ブランチプレビュー',
+              '',
+              'このコミットのプレビュービルドを EAS にキューしました。ビルド完了まで数分〜十数分かかります。',
+              '',
+              line(true, 'iOS ( TestFlight )', iosUrl, 'ビルド完了後 TestFlight アプリに自動配信されます'),
+              line(true, 'Android ( APK )', androidUrl, 'Android 端末でリンクを開き Install をタップ'),
+              '',
+              `<sub>commit ${context.sha.slice(0, 7)} · 進捗は EAS ダッシュボードで確認できます</sub>`,
+            ].join('\n');
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number });
+            const existing = comments.find(c => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
