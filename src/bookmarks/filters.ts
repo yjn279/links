@@ -3,7 +3,7 @@ import type { Bookmark } from '../types';
 export type FilterParams = {
   /** Tag IDs to filter by (AND semantics). Empty array = no filter. */
   tagIds: string[];
-  /** Free-text query matched against title and url (case-insensitive). */
+  /** Free-text query matched against title, url, and description (case-insensitive). */
   query: string;
   /** true = oldest first, false = newest first (default). */
   sortAsc: boolean;
@@ -27,12 +27,13 @@ export function applyFilters(bookmarks: Bookmark[], params: FilterParams): Bookm
     });
   }
 
-  // Free-text filter on title and url
+  // Free-text filter on title, url, and description
   if (q) {
     result = result.filter((b) => {
       const title = (b.title ?? '').toLowerCase();
       const url = b.url.toLowerCase();
-      return title.includes(q) || url.includes(q);
+      const description = (b.description ?? '').toLowerCase();
+      return title.includes(q) || url.includes(q) || description.includes(q);
     });
   }
 

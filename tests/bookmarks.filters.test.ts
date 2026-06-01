@@ -117,6 +117,22 @@ describe('applyFilters', () => {
       const result = applyFilters(ALL, { tagIds: [], query: 'zzz-no-match', sortAsc: false });
       expect(result).toHaveLength(0);
     });
+
+    it('case 11: query matches description when title is null', () => {
+      const bkDesc = makeBookmark('bk-desc', {
+        title: null,
+        url: 'https://example.com/bk-desc',
+        description: 'xylophone-unique-term overview',
+        tags: [],
+        created_at: '2026-01-05T10:00:00Z',
+      });
+      const result = applyFilters([...ALL, bkDesc], {
+        tagIds: [],
+        query: 'xylophone-unique-term',
+        sortAsc: false,
+      });
+      expect(result.map((b) => b.id)).toEqual(['bk-desc']);
+    });
   });
 
   describe('sort', () => {
