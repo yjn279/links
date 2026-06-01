@@ -16,6 +16,7 @@ import { ShareIntentProvider } from 'expo-share-intent';
 import { useAuthStore } from '../src/auth/store';
 import { isSupabaseConfigured } from '../src/supabase';
 import SetupRequired from '../components/SetupRequired';
+import AndroidShareHandler from '../components/AndroidShareHandler';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -54,6 +55,7 @@ export default function RootLayout() {
 
   return (
     <ShareIntentProvider options={{ resetOnBackground: false }}>
+      <AndroidShareHandler />
       <StatusBar style="auto" />
       <Stack>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
