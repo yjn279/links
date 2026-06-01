@@ -9,6 +9,7 @@ import { color } from '../../src/theme/tokens';
 export default function AddBookmarkScreen() {
   const { session } = useAuth();
   const add = useBookmarksStore((s) => s.add);
+  const tags = useBookmarksStore((s) => s.tags);
   const params = useLocalSearchParams<{ url?: string }>();
   const [defaultUrl, setDefaultUrl] = useState(params.url ?? '');
 
@@ -30,13 +31,13 @@ export default function AddBookmarkScreen() {
     }
   };
 
-  const onSave = async (url: string) => {
+  const onSave = async (url: string, tagNames: string[]) => {
     if (!session) {
       dismiss();
       return;
     }
     try {
-      await add(url, session.user.id);
+      await add(url, session.user.id, tagNames);
     } catch {
       // error is surfaced via store.lastMetaError; dismiss anyway
     }
@@ -50,6 +51,7 @@ export default function AddBookmarkScreen() {
         onClose={dismiss}
         onSave={onSave}
         defaultUrl={defaultUrl}
+        existingTags={tags.map((t) => t.name)}
       />
     </View>
   );
