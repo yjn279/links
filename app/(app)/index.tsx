@@ -120,6 +120,10 @@ export default function LibraryScreen() {
     }
   };
 
+  const editBookmark = (b: Bookmark) => {
+    router.push({ pathname: '/(app)/edit/[id]', params: { id: b.id } });
+  };
+
   return (
     <View style={styles.app}>
       <Sidebar
@@ -188,6 +192,7 @@ export default function LibraryScreen() {
                           favorite={favorites.has(item.id)}
                           onToggleFav={toggleFav}
                           onOpen={openBookmark}
+                          onLongPress={editBookmark}
                         />
                       </View>
                     ) : (
@@ -206,6 +211,7 @@ export default function LibraryScreen() {
                   favorite={favorites.has(item.id)}
                   onToggleFav={toggleFav}
                   onOpen={openBookmark}
+                  onLongPress={editBookmark}
                 />
               ))}
             </View>
