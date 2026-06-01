@@ -14,10 +14,14 @@ type BookmarksState = {
   bookmarks: Bookmark[];
   tags: Tag[];
   loading: boolean;
+  loadingMore: boolean;
+  hasMore: boolean;
+  nextCursor: string | null;
   error: string | null;
   lastMetaError: string | null;
 
   load: () => Promise<void>;
+  loadMore: () => Promise<void>;
   add: (url: string, userId: string) => Promise<Bookmark>;
   update: (
     id: string,
@@ -34,6 +38,9 @@ export const useBookmarksStore = create<BookmarksState>((set, get) => ({
   bookmarks: [],
   tags: [],
   loading: false,
+  loadingMore: false,
+  hasMore: true,
+  nextCursor: null,
   error: null,
   lastMetaError: null,
 
@@ -41,10 +48,35 @@ export const useBookmarksStore = create<BookmarksState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const [result, tags] = await Promise.all([listBookmarks(), listTags()]);
-      const { bookmarks } = result;
-      set({ bookmarks, tags, loading: false });
+      const { bookmarks, nextCursor } = result;
+      set({
+        bookmarks,
+        tags,
+        loading: false,
+        nextCursor,
+        hasMore: nextCursor !== null,
+      });
     } catch (e) {
       set({ error: String(e instanceof Error ? e.message : e), loading: false });
+    }
+  },
+
+  loadMore: async () => {
+    const { loading, loadingMore, hasMore, nextCursor } = get();
+    if (loading || loadingMore || !hasMore || nextCursor == null) return;
+
+    set({ loadingMore: true });
+    try {
+      const result = await listBookmarks({ before: nextCursor });
+      const { bookmarks: newBookmarks, nextCursor: newCursor } = result;
+      set({
+        bookmarks: [...get().bookmarks, ...newBookmarks],
+        nextCursor: newCursor,
+        hasMore: newCursor !== null,
+        loadingMore: false,
+      });
+    } catch {
+      set({ loadingMore: false });
     }
   },
 
