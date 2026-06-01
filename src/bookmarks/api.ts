@@ -1,9 +1,24 @@
 import { supabase } from '../supabase';
 import type { Bookmark, Tag } from '../types';
 
-/** Fetch all bookmarks (with their tags) for the current user, newest first. */
-export async function listBookmarks(): Promise<Bookmark[]> {
-  const { data, error } = await supabase
+export type ListBookmarksResult = {
+  bookmarks: Bookmark[];
+  nextCursor: string | null;
+};
+
+/** Fetch bookmarks (with their tags) for the current user, newest first.
+ *  Supports cursor-based pagination via `before` (a created_at value) and `limit`.
+ *  Defaults to limit=100. Returns `nextCursor` for the next page, or null when
+ *  there are no more results.
+ */
+export async function listBookmarks(opts?: {
+  limit?: number;
+  before?: string;
+}): Promise<ListBookmarksResult> {
+  const limit = opts?.limit ?? 100;
+  const before = opts?.before;
+
+  let query = supabase
     .from('bookmarks')
     .select(
       `id, user_id, url, title, description, thumbnail_url, favicon_url, site_name, created_at, updated_at,
@@ -11,14 +26,28 @@ export async function listBookmarks(): Promise<Bookmark[]> {
     )
     .order('created_at', { ascending: false });
 
+  if (before !== undefined) {
+    query = query.lt('created_at', before);
+  }
+
+  query = query.range(0, limit - 1);
+
+  const { data, error } = await query;
+
   if (error) throw new Error(error.message);
 
-  return (data ?? []).map((row) => ({
+  const rows = data ?? [];
+  const bookmarks = rows.map((row) => ({
     ...row,
     tags: ((row.tags ?? []) as unknown as { tag: Tag | null }[])
       .map((bt) => bt.tag)
       .filter((t): t is Tag => t !== null),
   }));
+
+  const nextCursor =
+    bookmarks.length === limit ? bookmarks[bookmarks.length - 1].created_at : null;
+
+  return { bookmarks, nextCursor };
 }
 
 /** Create a new bookmark (no meta yet). Returns the saved bookmark. */

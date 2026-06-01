@@ -40,7 +40,8 @@ export const useBookmarksStore = create<BookmarksState>((set, get) => ({
   load: async () => {
     set({ loading: true, error: null });
     try {
-      const [bookmarks, tags] = await Promise.all([listBookmarks(), listTags()]);
+      const [result, tags] = await Promise.all([listBookmarks(), listTags()]);
+      const { bookmarks } = result;
       set({ bookmarks, tags, loading: false });
     } catch (e) {
       set({ error: String(e instanceof Error ? e.message : e), loading: false });
