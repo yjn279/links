@@ -1,6 +1,8 @@
+import { openBrowserAsync } from 'expo-web-browser';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,6 +18,7 @@ import { TopBar } from '../../components/TopBar';
 import { ViewToggle } from '../../components/ViewToggle';
 import type { ViewMode } from '../../components/ViewToggle';
 import { useAuth } from '../../src/auth/use-auth';
+import { isOpenableUrl } from '../../src/lib/url';
 import { applyFilters } from '../../src/bookmarks/filters';
 import { useBookmarksStore } from '../../src/bookmarks/store';
 import { color, sp, typeScale } from '../../src/theme/tokens';
@@ -109,8 +112,12 @@ export default function LibraryScreen() {
     }
   }
 
-  const openBookmark = (_b: Bookmark) => {
-    // Future: open detail or URL
+  const openBookmark = (b: Bookmark) => {
+    if (isOpenableUrl(b.url)) {
+      void openBrowserAsync(b.url);
+    } else {
+      Alert.alert('開けません', 'このリンクは開けません。');
+    }
   };
 
   return (
