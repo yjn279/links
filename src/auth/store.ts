@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { Session as SupabaseSession } from '@supabase/supabase-js';
+import { router } from 'expo-router';
 import { supabase } from '../supabase';
 
 type AuthState = {
@@ -26,8 +27,11 @@ export const useAuthStore = create<AuthState>((set) => ({
     } = await supabase.auth.getSession();
     set({ session, loading: false });
 
-    supabase.auth.onAuthStateChange((_event, newSession) => {
+    supabase.auth.onAuthStateChange((event, newSession) => {
       set({ session: newSession });
+      if (event === 'PASSWORD_RECOVERY') {
+        router.replace('/reset-password');
+      }
     });
   },
 
