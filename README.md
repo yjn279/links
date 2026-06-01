@@ -92,6 +92,17 @@ supabase functions deploy fetch-meta
 supabase functions serve fetch-meta
 ```
 
+#### 3-d. Redirect URLs の設定（パスワードリセットに必須）
+
+パスワードリセットメールに含まれるリンクをアプリで受け取るには、Supabase ダッシュボードに Redirect URL を登録する必要があります。未設定の場合、リセットメールのリンクを開いても `reset-password` 画面へ遷移しません。
+
+1. Supabase ダッシュボードを開き、対象プロジェクトに移動します。
+2. 左サイドバーの **Authentication** を選択します。
+3. **URL Configuration** タブを開きます。
+4. **Redirect URLs** の入力欄に `links://reset-password` を追加して保存します。
+
+> `links` はこのアプリの URL スキーム（`app.json` の `expo.scheme`）です。ローカル開発用に Supabase CLI を使う場合も、本番プロジェクト側で同様に設定してください。
+
 ### 4. Expo Go での動作確認
 
 ```bash
