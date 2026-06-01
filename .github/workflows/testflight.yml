@@ -41,7 +41,8 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      # PR タイトルなどをそのままシェルに展開すると injection になり得るため env 経由で安全に渡す
+      # PR タイトルは攻撃者が制御できる入力なので、シェルにも GITHUB_OUTPUT にも
+      # 直接展開しない。env 経由で受け取り、改行を除去した 1 行を heredoc で書き出す。
       - name: Compose build message
         id: msg
         env:
@@ -53,12 +54,22 @@ jobs:
           SHA: ${{ github.sha }}
         run: |
           if [ "$EVENT" = "pull_request" ]; then
-            printf 'message=PR #%s · %s · %s\n' "$PR_NUMBER" "$HEAD_REF" "$PR_TITLE" >> "$GITHUB_OUTPUT"
+            raw="PR #${PR_NUMBER} · ${HEAD_REF} · ${PR_TITLE}"
           else
-            printf 'message=%s · %s\n' "$REF_NAME" "$SHA" >> "$GITHUB_OUTPUT"
+            raw="${REF_NAME} · ${SHA}"
           fi
+          # 改行 ( CR/LF ) を空白へ畳み込み、output injection を防ぐ
+          message=$(printf '%s' "$raw" | tr '\r\n' '  ')
+          {
+            echo "message<<EOF"
+            echo "$message"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
+      # message はシェルに直接展開せず env 経由で渡し、変数参照する ( injection 防止 )
       - name: Build & auto-submit to TestFlight
+        env:
+          MSG: ${{ steps.msg.outputs.message }}
         run: |
           eas build \
             --platform ios \
@@ -66,4 +77,4 @@ jobs:
             --non-interactive \
             --no-wait \
             --auto-submit \
-            --message "${{ steps.msg.outputs.message }}"
+            --message "$MSG"
