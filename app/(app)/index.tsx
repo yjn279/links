@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
-  ScrollView,
+  ActivityIndicator,
+  FlatList,
   StyleSheet,
   Text,
   View,
@@ -25,15 +26,18 @@ export default function LibraryScreen() {
   const { session } = useAuth();
   const bookmarks = useBookmarksStore((s) => s.bookmarks);
   const loading = useBookmarksStore((s) => s.loading);
+  const loadingMore = useBookmarksStore((s) => s.loadingMore);
   const error = useBookmarksStore((s) => s.error);
   const load = useBookmarksStore((s) => s.load);
+  const loadMore = useBookmarksStore((s) => s.loadMore);
 
   const { width } = useWindowDimensions();
-  const numColumns = width < 380 ? 1 : 2;
+  // list mode always uses 1 column; grid mode uses width-based columns
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const numColumns = viewMode === 'list' ? 1 : width < 380 ? 1 : 2;
 
   const [query, setQuery] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [sidebarView, setSidebarView] = useState<SidebarView>('all');
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
 
@@ -54,6 +58,24 @@ export default function LibraryScreen() {
       return next;
     });
   };
+
+  const openBookmark = (_b: Bookmark) => {
+    // Future: open detail or URL
+  };
+
+  const renderItem = useCallback(
+    ({ item }: { item: Bookmark }) => (
+      <View style={numColumns === 2 ? styles.gridCell : styles.listCell}>
+        <BookmarkCard
+          bookmark={item}
+          favorite={favorites.has(item.id)}
+          onToggleFav={toggleFav}
+          onOpen={openBookmark}
+        />
+      </View>
+    ),
+    [numColumns, favorites],
+  );
 
   // Apply sidebar view filter before text/tag filter
   const viewedBookmarks = bookmarks.filter((b) => {
@@ -101,17 +123,41 @@ export default function LibraryScreen() {
     );
   }
 
-  // Build rows for the grid layout
-  const gridItems: (Bookmark | null)[][] = [];
-  if (viewMode === 'grid' && numColumns === 2) {
-    for (let i = 0; i < filtered.length; i += 2) {
-      gridItems.push([filtered[i] ?? null, filtered[i + 1] ?? null]);
-    }
-  }
+  const ListHeader = (
+    <View style={styles.lib}>
+      {/* H1 */}
+      <Text style={styles.libH1}>Your Library</Text>
 
-  const openBookmark = (_b: Bookmark) => {
-    // Future: open detail or URL
-  };
+      {/* 2x2 stat grid */}
+      <View style={styles.statsGrid}>
+        <View style={styles.statsRow}>
+          <StatCard label="Total"     value={stats.total.n}     delta={stats.total.delta}     deltaUp />
+          <StatCard label="Favorites" value={stats.favorites.n} delta={stats.favorites.delta} deltaUp />
+        </View>
+        <View style={styles.statsRow}>
+          <StatCard label="Trending"  value={stats.trending.n}  delta={stats.trending.delta} />
+          <StatCard label="Recent"    value={stats.recent.n}    delta={stats.recent.delta} />
+        </View>
+      </View>
+
+      {/* Section head */}
+      <View style={styles.sectionHead}>
+        <View style={styles.sectionTitle}>
+          <Text style={styles.libH2} numberOfLines={1}>Bookmarks</Text>
+          <Text style={styles.libCount} numberOfLines={1}>{filtered.length} items</Text>
+        </View>
+        <View style={styles.viewToggleWrap}>
+          <ViewToggle mode={viewMode} onChange={setViewMode} />
+        </View>
+      </View>
+    </View>
+  );
+
+  const ListFooter = loadingMore ? (
+    <View style={styles.footer} testID="loading-more-spinner">
+      <ActivityIndicator size="small" color={color.ink3} />
+    </View>
+  ) : null;
 
   return (
     <View style={styles.app}>
@@ -123,88 +169,34 @@ export default function LibraryScreen() {
         stats={stats}
       />
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.main}
+      {/* Sticky TopBar rendered outside FlatList for reliable sticky behavior */}
+      <TopBar
+        onMenu={() => setSidebarOpen(true)}
+        onAdd={() => router.push('/(app)/add')}
+        query={query}
+        setQuery={setQuery}
+        userInitial={session?.user.email?.[0]?.toUpperCase() ?? 'L'}
+      />
+
+      <FlatList
+        key={`cols-${numColumns}`}
+        data={filtered}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
+        numColumns={numColumns}
+        columnWrapperStyle={numColumns === 2 ? styles.columnWrapper : undefined}
+        ListHeaderComponent={ListHeader}
+        ListFooterComponent={ListFooter}
+        ListEmptyComponent={<EmptyLibraryState query={query || undefined} />}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
+        removeClippedSubviews
+        windowSize={11}
+        initialNumToRender={20}
+        style={styles.list}
+        contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
-        stickyHeaderIndices={[0]}
-      >
-        {/* TopBar — sticky */}
-        <TopBar
-          onMenu={() => setSidebarOpen(true)}
-          onAdd={() => router.push('/(app)/add')}
-          query={query}
-          setQuery={setQuery}
-          userInitial={session?.user.email?.[0]?.toUpperCase() ?? 'L'}
-        />
-
-        {/* Library content */}
-        <View style={styles.lib}>
-          {/* H1 */}
-          <Text style={styles.libH1}>Your Library</Text>
-
-          {/* 2x2 stat grid */}
-          <View style={styles.statsGrid}>
-            <View style={styles.statsRow}>
-              <StatCard label="Total"     value={stats.total.n}     delta={stats.total.delta}     deltaUp />
-              <StatCard label="Favorites" value={stats.favorites.n} delta={stats.favorites.delta} deltaUp />
-            </View>
-            <View style={styles.statsRow}>
-              <StatCard label="Trending"  value={stats.trending.n}  delta={stats.trending.delta} />
-              <StatCard label="Recent"    value={stats.recent.n}    delta={stats.recent.delta} />
-            </View>
-          </View>
-
-          {/* Section head */}
-          <View style={styles.sectionHead}>
-            <View style={styles.sectionTitle}>
-              <Text style={styles.libH2} numberOfLines={1}>Bookmarks</Text>
-              <Text style={styles.libCount} numberOfLines={1}>{filtered.length} items</Text>
-            </View>
-            <View style={styles.viewToggleWrap}>
-              <ViewToggle mode={viewMode} onChange={setViewMode} />
-            </View>
-          </View>
-
-          {/* Bookmark list */}
-          {filtered.length === 0 ? (
-            <EmptyLibraryState query={query || undefined} />
-          ) : viewMode === 'grid' && numColumns === 2 ? (
-            <View style={styles.gridContainer}>
-              {gridItems.map((row, rowIdx) => (
-                <View key={rowIdx} style={styles.gridRow}>
-                  {row.map((item, colIdx) =>
-                    item ? (
-                      <View key={item.id} style={styles.gridCell}>
-                        <BookmarkCard
-                          bookmark={item}
-                          favorite={favorites.has(item.id)}
-                          onToggleFav={toggleFav}
-                          onOpen={openBookmark}
-                        />
-                      </View>
-                    ) : (
-                      <View key={`empty-${rowIdx}-${colIdx}`} style={styles.gridCell} />
-                    ),
-                  )}
-                </View>
-              ))}
-            </View>
-          ) : (
-            <View style={styles.listContainer}>
-              {filtered.map((item) => (
-                <BookmarkCard
-                  key={item.id}
-                  bookmark={item}
-                  favorite={favorites.has(item.id)}
-                  onToggleFav={toggleFav}
-                  onOpen={openBookmark}
-                />
-              ))}
-            </View>
-          )}
-        </View>
-      </ScrollView>
+      />
     </View>
   );
 }
@@ -215,10 +207,10 @@ const styles = StyleSheet.create({
     backgroundColor: color.paper,
     position: 'relative',
   },
-  scroll: {
+  list: {
     flex: 1,
   },
-  main: {
+  listContent: {
     maxWidth: 520,
     width: '100%',
     alignSelf: 'center',
@@ -273,19 +265,20 @@ const styles = StyleSheet.create({
     color: color.ink3,
     flexShrink: 1,
   },
-  gridContainer: {
+  columnWrapper: {
     gap: 12,
-  },
-  gridRow: {
-    flexDirection: 'row',
-    gap: 12,
-    alignItems: 'stretch',
+    marginBottom: 12,
   },
   gridCell: {
     flex: 1,
   },
-  listContainer: {
-    gap: 12,
+  listCell: {
+    flex: 1,
+    marginBottom: 12,
+  },
+  footer: {
+    paddingVertical: 16,
+    alignItems: 'center',
   },
   loadingContainer: {
     flex: 1,
@@ -310,4 +303,3 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
-
