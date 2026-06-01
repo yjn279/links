@@ -16,11 +16,12 @@ type Props = {
   mode: Mode;
   onSubmit: (email: string, password: string) => Promise<void>;
   onSwitchMode: () => void;
+  onForgotPassword?: () => void;
   loading: boolean;
   error: string | null;
 };
 
-export function AuthForm({ mode, onSubmit, onSwitchMode, loading, error }: Props) {
+export function AuthForm({ mode, onSubmit, onSwitchMode, onForgotPassword, loading, error }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -82,6 +83,12 @@ export function AuthForm({ mode, onSubmit, onSwitchMode, loading, error }: Props
             {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Log in'}
           </Text>
         </Pressable>
+
+        {isLogin && onForgotPassword ? (
+          <Pressable onPress={onForgotPassword} disabled={loading} style={styles.switchBtn}>
+            <Text style={styles.switchText}>Forgot password?</Text>
+          </Pressable>
+        ) : null}
       </View>
     </KeyboardAvoidingView>
   );
