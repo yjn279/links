@@ -1,0 +1,96 @@
+name: Release
+
+# GitHub Release を publish すると、そのタグのバージョンで store ビルドを作成し
+# App Store Connect へ自動 submit する。タグ ( 例 v0.2.0 ) が App Store のバージョン表記になる。
+# build number は EAS が remote で自動採番する ( eas.json の appVersionSource: remote ) 。
+#
+# eas submit はバイナリを App Store Connect へアップロードする ( = TestFlight 配信 + App Store 版に
+# 添付可能な状態 ) 。一般公開の最終ステップ「 Submit for Review 」は App Store Connect 側で行う。
+# 詳細は docs/ci-cd.md を参照。
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "App Store バージョン ( 例 0.2.0 ) 。省略時は app.json の値を使う。"
+        required: false
+
+concurrency:
+  group: release-app-store
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  app-store:
+    name: Build & submit to App Store
+    runs-on: ubuntu-latest
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      # タグ ( 例 v0.2.0 ) からバージョンを取り出し、 semver なら app.json の expo.version に反映する。
+      # EAS はビルド時に app.json を読むため、 commit せずワークツリー上で書き換えれば反映される。
+      # タグ・入力値は env 経由で受け取り run に直接展開しない ( injection 防止 ) 。
+      - name: Resolve App Store version
+        id: ver
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+        run: |
+          raw="${INPUT_VERSION:-$TAG}"
+          version=$(printf '%s' "$raw" | tr -d '\r\n' | sed 's/^v//')
+          if printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            jq --arg v "$version" '.expo.version = $v' app.json > app.json.tmp && mv app.json.tmp app.json
+            echo "version=$version" >> "$GITHUB_OUTPUT"
+            echo "App Store version set to $version"
+          else
+            echo "version=" >> "$GITHUB_OUTPUT"
+            echo "::notice::Tag '$raw' is not semver; building with app.json version unchanged."
+          fi
+
+      - name: Compose release message
+        id: msg
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+          SHA: ${{ github.sha }}
+        run: |
+          raw="Release ${TAG:-manual} · ${SHA}"
+          message=$(printf '%s' "$raw" | tr '\r\n' '  ')
+          {
+            echo "message<<EOF"
+            echo "$message"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build & auto-submit to App Store
+        env:
+          MSG: ${{ steps.msg.outputs.message }}
+        run: |
+          eas build \
+            --platform ios \
+            --profile production \
+            --non-interactive \
+            --no-wait \
+            --auto-submit \
+            --message "$MSG"
