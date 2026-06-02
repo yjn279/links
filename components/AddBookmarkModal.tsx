@@ -1,7 +1,7 @@
 /**
  * AddBookmarkModal.tsx — Liquid Glass modal for adding bookmarks
  * Mirrors design-spec/ui_kits/links-app/AddBookmarkModal.jsx + styles.css .modal-*
- * Props: { open, onClose, onSave, defaultUrl? }
+ * Props: { open, onClose, onSave, defaultUrl?, existingTags }
  */
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -17,18 +17,21 @@ import {
 } from 'react-native';
 import { GlassSurface } from './GlassSurface';
 import { Icon } from './Icon';
+import { TagChipEditor } from './TagChipEditor';
 import { color, radius, sp, typeScale } from '../src/theme/tokens';
 import { normalizeUrl } from '../src/bookmarks/url';
 
 type Props = {
   open: boolean;
   onClose: () => void;
-  onSave: (url: string) => void;
+  onSave: (url: string, tagNames: string[]) => void;
   defaultUrl?: string;
+  existingTags: string[];
 };
 
-export function AddBookmarkModal({ open, onClose, onSave, defaultUrl }: Props) {
+export function AddBookmarkModal({ open, onClose, onSave, defaultUrl, existingTags }: Props) {
   const [url, setUrl] = useState(defaultUrl ?? '');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const inputRef = useRef<TextInput>(null);
   const scrimOpacity = useRef(new Animated.Value(0)).current;
   const modalScale = useRef(new Animated.Value(0.96)).current;
@@ -68,8 +71,9 @@ export function AddBookmarkModal({ open, onClose, onSave, defaultUrl }: Props) {
       return;
     }
     setUrlError(null);
-    onSave(result.url);
+    onSave(result.url, selectedTags);
     setUrl('');
+    setSelectedTags([]);
   };
 
   const isReady = url.trim().length > 0;
@@ -138,6 +142,15 @@ export function AddBookmarkModal({ open, onClose, onSave, defaultUrl }: Props) {
               {urlError}
             </Text>
           ) : null}
+
+          {/* Tag selector */}
+          <View style={styles.tagSection}>
+            <TagChipEditor
+              existingTags={existingTags}
+              selected={selectedTags}
+              onChange={setSelectedTags}
+            />
+          </View>
 
           {/* Actions */}
           <View style={styles.actions}>
@@ -254,6 +267,9 @@ const styles = StyleSheet.create({
     ...typeScale.body,
     color: color.ink,
     ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as object : {}),
+  },
+  tagSection: {
+    marginBottom: 16,
   },
   actions: {
     flexDirection: 'row',

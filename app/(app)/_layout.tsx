@@ -26,6 +26,15 @@ export default function AppLayout() {
           headerTintColor: color.ink,
         }}
       />
+      <Stack.Screen
+        name="settings"
+        options={{
+          headerShown: true,
+          title: 'Settings',
+          headerStyle: { backgroundColor: color.paper },
+          headerTintColor: color.ink,
+        }}
+      />
     </Stack>
   );
 }
