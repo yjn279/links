@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { BookmarkCard } from '../../components/BookmarkCard';
 import { EmptyLibraryState } from '../../components/EmptyLibraryState';
+import { FilterSortBar } from '../../components/FilterSortBar';
 import { Sidebar } from '../../components/Sidebar';
 import type { SidebarView } from '../../components/Sidebar';
 import { StatCard } from '../../components/StatCard';
@@ -17,6 +18,7 @@ import { ViewToggle } from '../../components/ViewToggle';
 import type { ViewMode } from '../../components/ViewToggle';
 import { useAuth } from '../../src/auth/use-auth';
 import { applyFilters } from '../../src/bookmarks/filters';
+import type { SortKey } from '../../src/bookmarks/filters';
 import { useBookmarksStore } from '../../src/bookmarks/store';
 import { color, sp, typeScale } from '../../src/theme/tokens';
 import type { Bookmark } from '../../src/types';
@@ -36,6 +38,11 @@ export default function LibraryScreen() {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [sidebarView, setSidebarView] = useState<SidebarView>('all');
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [sortKey, setSortKey] = useState<SortKey>('created_at');
+  const [sortAsc, setSortAsc] = useState(false);
+
+  const tags = useBookmarksStore((s) => s.tags);
 
   useEffect(() => {
     if (session) {
@@ -68,9 +75,10 @@ export default function LibraryScreen() {
   });
 
   const filtered = applyFilters(viewedBookmarks, {
-    tagIds: [],
+    tagIds: selectedTagIds,
     query,
-    sortAsc: false,
+    sortKey,
+    sortAsc,
   });
 
   // Compute live stats
@@ -167,6 +175,17 @@ export default function LibraryScreen() {
               <ViewToggle mode={viewMode} onChange={setViewMode} />
             </View>
           </View>
+
+          {/* Filter and sort controls */}
+          <FilterSortBar
+            allTags={tags}
+            selectedTagIds={selectedTagIds}
+            onChangeTagIds={setSelectedTagIds}
+            sortKey={sortKey}
+            onChangeSortKey={setSortKey}
+            sortAsc={sortAsc}
+            onToggleSortAsc={() => setSortAsc((v) => !v)}
+          />
 
           {/* Bookmark list */}
           {filtered.length === 0 ? (
