@@ -2,7 +2,7 @@
  * Tests for components/Sidebar.tsx
  * Verifies: render (open=true), brand text, nav items + counts, nav select calls
  * onSelect+onClose, Collections item select, Close menu button, and current-spec:
- * Settings item has no onPress handler.
+ * Settings item calls onSettings and onClose when pressed (#33).
  *
  * Animated.timing callbacks (setScrimVisible) are driven with jest.useFakeTimers().
  */
@@ -62,6 +62,7 @@ describe('Sidebar', () => {
           view="all"
           onSelect={jest.fn()}
           onClose={jest.fn()}
+          onSettings={jest.fn()}
           stats={makeStats()}
         />,
       );
@@ -78,6 +79,7 @@ describe('Sidebar', () => {
           view="all"
           onSelect={jest.fn()}
           onClose={jest.fn()}
+          onSettings={jest.fn()}
           stats={makeStats()}
         />,
       );
@@ -95,6 +97,7 @@ describe('Sidebar', () => {
           view="all"
           onSelect={jest.fn()}
           onClose={jest.fn()}
+          onSettings={jest.fn()}
           stats={makeStats()}
         />,
       );
@@ -115,6 +118,7 @@ describe('Sidebar', () => {
           view="all"
           onSelect={jest.fn()}
           onClose={jest.fn()}
+          onSettings={jest.fn()}
           stats={makeStats()}
         />,
       );
@@ -137,6 +141,7 @@ describe('Sidebar', () => {
           view="all"
           onSelect={onSelect}
           onClose={onClose}
+          onSettings={jest.fn()}
           stats={makeStats()}
         />,
       );
@@ -161,6 +166,7 @@ describe('Sidebar', () => {
           view="all"
           onSelect={onSelect}
           onClose={onClose}
+          onSettings={jest.fn()}
           stats={makeStats()}
         />,
       );
@@ -185,6 +191,7 @@ describe('Sidebar', () => {
           view="all"
           onSelect={onSelect}
           onClose={onClose}
+          onSettings={jest.fn()}
           stats={makeStats()}
         />,
       );
@@ -208,6 +215,7 @@ describe('Sidebar', () => {
           view="all"
           onSelect={jest.fn()}
           onClose={onClose}
+          onSettings={jest.fn()}
           stats={makeStats()}
         />,
       );
@@ -221,7 +229,9 @@ describe('Sidebar', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('current-spec: Settings item exists but has no onPress handler (Sidebar.tsx:156-161)', () => {
+  it('current-spec: Settings item calls onSettings and onClose when pressed (Sidebar.tsx:158-163, #33)', () => {
+    const onSettings = jest.fn();
+    const onClose = jest.fn();
     let tree: ReturnType<typeof create>;
     act(() => {
       tree = create(
@@ -229,19 +239,19 @@ describe('Sidebar', () => {
           open={true}
           view="all"
           onSelect={jest.fn()}
-          onClose={jest.fn()}
+          onClose={onClose}
+          onSettings={onSettings}
           stats={makeStats()}
         />,
       );
     });
-    // Settings Pressable wraps "Settings" text but has no onPress configured
+    // Settings Pressable has an onPress that calls onSettings() then onClose()
     const settingsPressable = findPressableByText(tree!, 'Settings');
-    // The Pressable for Settings exists in the DOM
-    expect(settingsPressable).toBeUndefined();
-    // Settings is rendered as a Pressable WITHOUT onPress — it won't be found by
-    // the findPressableByText helper (which filters for onPress !== undefined).
-    // Verify "Settings" text is present in the rendered output.
-    const json = JSON.stringify(tree!.toJSON());
-    expect(json).toContain('Settings');
+    expect(settingsPressable).toBeDefined();
+    act(() => {
+      settingsPressable!.props.onPress();
+    });
+    expect(onSettings).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
