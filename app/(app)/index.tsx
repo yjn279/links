@@ -1,7 +1,9 @@
+import { openBrowserAsync } from 'expo-web-browser';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   StyleSheet,
   Text,
@@ -10,6 +12,7 @@ import {
 } from 'react-native';
 import { BookmarkCard } from '../../components/BookmarkCard';
 import { EmptyLibraryState } from '../../components/EmptyLibraryState';
+import { FilterSortBar } from '../../components/FilterSortBar';
 import { Sidebar } from '../../components/Sidebar';
 import type { SidebarView } from '../../components/Sidebar';
 import { StatCard } from '../../components/StatCard';
@@ -17,7 +20,9 @@ import { TopBar } from '../../components/TopBar';
 import { ViewToggle } from '../../components/ViewToggle';
 import type { ViewMode } from '../../components/ViewToggle';
 import { useAuth } from '../../src/auth/use-auth';
+import { isOpenableUrl } from '../../src/lib/url';
 import { applyFilters } from '../../src/bookmarks/filters';
+import type { SortKey } from '../../src/bookmarks/filters';
 import { useBookmarksStore } from '../../src/bookmarks/store';
 import { color, sp, typeScale } from '../../src/theme/tokens';
 import type { Bookmark } from '../../src/types';
@@ -30,6 +35,7 @@ export default function LibraryScreen() {
   const error = useBookmarksStore((s) => s.error);
   const load = useBookmarksStore((s) => s.load);
   const loadMore = useBookmarksStore((s) => s.loadMore);
+  const tags = useBookmarksStore((s) => s.tags);
 
   const { width } = useWindowDimensions();
   // list mode always uses 1 column; grid mode uses width-based columns
@@ -40,6 +46,9 @@ export default function LibraryScreen() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarView, setSidebarView] = useState<SidebarView>('all');
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [sortKey, setSortKey] = useState<SortKey>('created_at');
+  const [sortAsc, setSortAsc] = useState(false);
 
   useEffect(() => {
     if (session) {
@@ -59,8 +68,16 @@ export default function LibraryScreen() {
     });
   };
 
-  const openBookmark = (_b: Bookmark) => {
-    // Future: open detail or URL
+  const openBookmark = (b: Bookmark) => {
+    if (isOpenableUrl(b.url)) {
+      void openBrowserAsync(b.url);
+    } else {
+      Alert.alert('開けません', 'このリンクは開けません。');
+    }
+  };
+
+  const editBookmark = (b: Bookmark) => {
+    router.push({ pathname: '/(app)/edit/[id]', params: { id: b.id } });
   };
 
   const renderItem = useCallback(
@@ -71,6 +88,7 @@ export default function LibraryScreen() {
           favorite={favorites.has(item.id)}
           onToggleFav={toggleFav}
           onOpen={openBookmark}
+          onLongPress={editBookmark}
         />
       </View>
     ),
@@ -90,9 +108,10 @@ export default function LibraryScreen() {
   });
 
   const filtered = applyFilters(viewedBookmarks, {
-    tagIds: [],
+    tagIds: selectedTagIds,
     query,
-    sortAsc: false,
+    sortKey,
+    sortAsc,
   });
 
   // Compute live stats
@@ -150,6 +169,17 @@ export default function LibraryScreen() {
           <ViewToggle mode={viewMode} onChange={setViewMode} />
         </View>
       </View>
+
+      {/* Filter and sort controls */}
+      <FilterSortBar
+        allTags={tags}
+        selectedTagIds={selectedTagIds}
+        onChangeTagIds={setSelectedTagIds}
+        sortKey={sortKey}
+        onChangeSortKey={setSortKey}
+        sortAsc={sortAsc}
+        onToggleSortAsc={() => setSortAsc((v) => !v)}
+      />
     </View>
   );
 
@@ -166,6 +196,7 @@ export default function LibraryScreen() {
         view={sidebarView}
         onSelect={setSidebarView}
         onClose={() => setSidebarOpen(false)}
+        onSettings={() => router.push('/(app)/settings')}
         stats={stats}
       />
 
@@ -173,6 +204,7 @@ export default function LibraryScreen() {
       <TopBar
         onMenu={() => setSidebarOpen(true)}
         onAdd={() => router.push('/(app)/add')}
+        onAccount={() => router.push('/(app)/settings')}
         query={query}
         setQuery={setQuery}
         userInitial={session?.user.email?.[0]?.toUpperCase() ?? 'L'}

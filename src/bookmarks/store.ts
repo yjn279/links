@@ -22,7 +22,7 @@ type BookmarksState = {
 
   load: () => Promise<void>;
   loadMore: () => Promise<void>;
-  add: (url: string, userId: string) => Promise<Bookmark>;
+  add: (url: string, userId: string, tagNames?: string[]) => Promise<Bookmark>;
   update: (
     id: string,
     fields: Partial<Pick<Bookmark, 'url' | 'title' | 'description' | 'thumbnail_url' | 'favicon_url' | 'site_name'>>,
@@ -80,12 +80,29 @@ export const useBookmarksStore = create<BookmarksState>((set, get) => ({
     }
   },
 
-  add: async (url, userId) => {
+  add: async (url, userId, tagNames?) => {
     // 1. Immediate save (no meta yet)
     const bookmark = await createBookmark(url, userId);
     set({ bookmarks: [bookmark, ...get().bookmarks] });
 
-    // 2. Fire-and-forget meta fetch — same pattern as old summarize in src/store.ts:43-66
+    // 2. Optionally set tags synchronously before returning
+    if (tagNames && tagNames.length > 0) {
+      try {
+        const newTags = await setTagsForBookmark(bookmark.id, userId, tagNames);
+        const allTags = await listTags();
+        set({
+          bookmarks: get().bookmarks.map((b) =>
+            b.id === bookmark.id ? { ...b, tags: newTags } : b,
+          ),
+          tags: allTags,
+        });
+        bookmark.tags = newTags;
+      } catch (e) {
+        get().setMetaError(String(e instanceof Error ? e.message : e));
+      }
+    }
+
+    // 3. Fire-and-forget meta fetch — same pattern as old summarize in src/store.ts:43-66
     void fetchMeta(url)
       .then(async (meta) => {
         if (

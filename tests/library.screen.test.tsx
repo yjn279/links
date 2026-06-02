@@ -1,43 +1,52 @@
 /**
- * Component tests for app/(app)/index.tsx — FlatList infinite scroll.
+ * Tests for app/(app)/index.tsx — LibraryScreen (FlatList + infinite scroll)
  *
  * Scenarios covered:
- *   1. onEndReached fires → store's loadMore is called.
- *   2. loadingMore=true  → footer spinner (testID="loading-more-spinner") is rendered.
- *   3. loadingMore=false → footer spinner is absent.
- *   4. filtered.length===0 → EmptyLibraryState is rendered.
- *   5. viewMode toggle (grid → list) → numColumns changes (key prop changes on FlatList).
+ *   (a) List rendering — multiple bookmarks render as BookmarkCard (testID="bm-card")
+ *       and the count label shows "N items".
+ *   (b) Empty state — empty bookmarks array renders EmptyLibraryState.
+ *   (c) Search filter — querying by title/url reduces displayed cards.
+ *   (d) Grid/List view toggle — width>=380 renders grid; width<380 → numColumns===1.
+ *   (e) Loading state — loading=true with empty bookmarks renders "Loading...".
+ *   (f) Error state — error string set renders "Something went wrong".
+ *   (g) FlatList pagination — onEndReached fires → store's loadMore is called.
+ *   (h) Footer spinner — loadingMore=true renders spinner (testID="loading-more-spinner").
+ *   (i) onEndReachedThreshold is set to 0.5.
+ *   (j) load() called on mount when session present; skipped when null.
  */
 
 import React from 'react';
 import { act, create } from 'react-test-renderer';
+import type { Bookmark } from '../src/types';
 
-// ---------- Mock: expo-router ----------
-jest.mock('expo-router', () => ({
-  router: { push: jest.fn() },
-}));
+// ---------------------------------------------------------------------------
+// Mocks
+// ---------------------------------------------------------------------------
 
-// ---------- Mock: react-native-safe-area-context ----------
+// react-native-safe-area-context
 jest.mock('react-native-safe-area-context', () => ({
-  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
-  SafeAreaProvider: ({ children }: { children: React.ReactNode }) => children,
+  useSafeAreaInsets: () => ({ top: 44, bottom: 34, left: 0, right: 0 }),
 }));
 
-// ---------- Mock: useWindowDimensions ----------
-// Default width=390 → numColumns=2 in grid mode.
+// expo-router
+const mockPush = jest.fn();
+jest.mock('expo-router', () => ({
+  router: { push: mockPush },
+}));
+
+// expo-web-browser
+jest.mock('expo-web-browser', () => ({
+  openBrowserAsync: jest.fn(),
+}));
+
+// useWindowDimensions — module-level mock, width mutated per-test
 let mockWidth = 390;
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
-  default: () => ({ width: mockWidth, height: 844 }),
+  default: () => ({ width: mockWidth, height: 844, scale: 2, fontScale: 1 }),
 }));
 
-// ---------- Mock: src/auth/use-auth ----------
-let mockSession: { user: { email: string } } | null = { user: { email: 'test@example.com' } };
-jest.mock('../src/auth/use-auth', () => ({
-  useAuth: () => ({ session: mockSession }),
-}));
-
-// ---------- Store mock state ----------
-let mockBookmarks: object[] = [];
+// src/bookmarks/store — selector-aware mock with full pagination state
+let mockBookmarks: Bookmark[] = [];
 let mockLoading = false;
 let mockLoadingMore = false;
 let mockHasMore = true;
@@ -46,7 +55,16 @@ const mockLoad = jest.fn();
 const mockLoadMore = jest.fn();
 
 jest.mock('../src/bookmarks/store', () => ({
-  useBookmarksStore: (selector: (s: object) => unknown) =>
+  useBookmarksStore: (selector: (s: {
+    bookmarks: Bookmark[];
+    loading: boolean;
+    loadingMore: boolean;
+    hasMore: boolean;
+    error: string | null;
+    load: () => void;
+    loadMore: () => void;
+    tags: [];
+  }) => unknown) =>
     selector({
       bookmarks: mockBookmarks,
       loading: mockLoading,
@@ -55,46 +73,44 @@ jest.mock('../src/bookmarks/store', () => ({
       error: mockError,
       load: mockLoad,
       loadMore: mockLoadMore,
+      tags: [],
     }),
 }));
 
-// ---------- Mock: src/bookmarks/filters ----------
-// Pass-through by default so filtered === viewedBookmarks.
-jest.mock('../src/bookmarks/filters', () => ({
-  applyFilters: (items: object[]) => items,
+// src/auth/use-auth
+let mockSession: { access_token: string; user: { id: string; email: string | undefined } } | null = {
+  access_token: 'tok',
+  user: { id: 'u1', email: 'test@example.com' },
+};
+
+jest.mock('../src/auth/use-auth', () => ({
+  useAuth: () => ({ session: mockSession }),
 }));
 
-// ---------- Mock: heavy native components ----------
-jest.mock('../components/TopBar', () => ({
-  TopBar: () => null,
-}));
-jest.mock('../components/Sidebar', () => ({
-  Sidebar: () => null,
-}));
-jest.mock('../components/BookmarkCard', () => ({
-  BookmarkCard: () => null,
-}));
-jest.mock('../components/StatCard', () => ({
-  StatCard: () => null,
-}));
-jest.mock('../components/ViewToggle', () => ({
-  ViewToggle: () => null,
-}));
-jest.mock('../components/EmptyLibraryState', () => {
-  const { View } = require('react-native');
-  return {
-    EmptyLibraryState: () => <View testID="empty-library-state" />,
-  };
-});
-
-// ---------- Mock: Icon (used by EmptyLibraryState) ----------
-jest.mock('../components/Icon', () => ({
-  Icon: () => null,
-}));
-
+// Import AFTER all jest.mock calls
 import LibraryScreen from '../app/(app)/index';
 
-// Helper: render with act
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function makeBookmark(overrides: Partial<Bookmark> = {}): Bookmark {
+  return {
+    id: Math.random().toString(36).slice(2),
+    user_id: 'u1',
+    url: 'https://example.com',
+    title: 'Example Title',
+    description: null,
+    thumbnail_url: null,
+    favicon_url: null,
+    site_name: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    tags: [],
+    ...overrides,
+  };
+}
+
 function render() {
   let tree!: ReturnType<typeof create>;
   act(() => {
@@ -103,7 +119,7 @@ function render() {
   return tree;
 }
 
-// Helper: find a component instance by testID in the rendered tree
+// Helper: find a node by testID in the rendered tree JSON
 function findByTestID(tree: ReturnType<typeof create>, testID: string): boolean {
   const json = tree.toJSON();
   const search = (node: unknown): boolean => {
@@ -119,6 +135,31 @@ function findByTestID(tree: ReturnType<typeof create>, testID: string): boolean 
   return search(json);
 }
 
+// Recursively search for text in the rendered tree (avoids JSON.stringify circular ref issue)
+function containsText(node: unknown, text: string): boolean {
+  if (typeof node === 'string') return node.includes(text);
+  if (!node || typeof node !== 'object') return false;
+  const n = node as { props?: { children?: unknown }; children?: unknown[] };
+  const children = (n as { children?: unknown[] }).children ?? [];
+  if (Array.isArray(children)) {
+    return children.some((child) => containsText(child, text));
+  }
+  if (n.props?.children !== undefined) {
+    return containsText(n.props.children, text);
+  }
+  return false;
+}
+
+function treeContainsText(tree: ReturnType<typeof create>, text: string): boolean {
+  const json = tree.toJSON();
+  if (Array.isArray(json)) return json.some((node) => containsText(node, text));
+  return containsText(json, text);
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
 describe('LibraryScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -127,140 +168,287 @@ describe('LibraryScreen', () => {
     mockLoadingMore = false;
     mockHasMore = true;
     mockError = null;
-    mockSession = { user: { email: 'test@example.com' } };
     mockWidth = 390;
-  });
-
-  // --- 1. onEndReached → loadMore is called ---
-  it('onEndReached triggers loadMore from the store', () => {
-    const b = {
-      id: 'bk1',
-      user_id: 'u1',
-      url: 'https://example.com/1',
-      title: 'Test',
-      description: null,
-      thumbnail_url: null,
-      favicon_url: null,
-      site_name: null,
-      created_at: '2026-01-01T00:00:00Z',
-      updated_at: '2026-01-01T00:00:00Z',
-      tags: [],
+    mockSession = {
+      access_token: 'tok',
+      user: { id: 'u1', email: 'test@example.com' },
     };
-    mockBookmarks = [b];
+  });
 
-    const tree = render();
-
-    // Find the FlatList instance and call onEndReached directly
-    const flatList = tree.root.findByType(
-      require('react-native').FlatList,
-    );
-    act(() => {
-      flatList.props.onEndReached?.({ distanceFromEnd: 100 });
+  // -------------------------------------------------------------------------
+  // (a) List rendering
+  // -------------------------------------------------------------------------
+  describe('(a) list rendering', () => {
+    it('renders a BookmarkCard for each bookmark', () => {
+      mockBookmarks = [
+        makeBookmark({ id: 'b1', title: 'First Bookmark' }),
+        makeBookmark({ id: 'b2', title: 'Second Bookmark' }),
+        makeBookmark({ id: 'b3', title: 'Third Bookmark' }),
+      ];
+      const tree = render();
+      expect(treeContainsText(tree, 'First Bookmark')).toBe(true);
+      expect(treeContainsText(tree, 'Second Bookmark')).toBe(true);
+      expect(treeContainsText(tree, 'Third Bookmark')).toBe(true);
+      const cards = tree.root.findAll(
+        (node) => node.props.testID === 'bm-card',
+      );
+      expect(cards.length).toBeGreaterThanOrEqual(3);
     });
 
-    expect(mockLoadMore).toHaveBeenCalledTimes(1);
-  });
-
-  // --- 2. loadingMore=true → footer spinner is rendered ---
-  it('renders footer spinner when loadingMore is true', () => {
-    mockLoadingMore = true;
-
-    const tree = render();
-    expect(findByTestID(tree, 'loading-more-spinner')).toBe(true);
-  });
-
-  // --- 3. loadingMore=false → footer spinner is absent ---
-  it('does not render footer spinner when loadingMore is false', () => {
-    mockLoadingMore = false;
-
-    const tree = render();
-    expect(findByTestID(tree, 'loading-more-spinner')).toBe(false);
-  });
-
-  // --- 4. Empty state: EmptyLibraryState is rendered when filtered is empty ---
-  it('renders EmptyLibraryState when there are no bookmarks', () => {
-    mockBookmarks = [];
-
-    const tree = render();
-
-    // Find the FlatList and verify ListEmptyComponent is present
-    const flatList = tree.root.findByType(
-      require('react-native').FlatList,
-    );
-    // ListEmptyComponent is rendered when data is empty
-    const emptyComponent = flatList.props.ListEmptyComponent;
-    expect(emptyComponent).not.toBeNull();
-
-    // Render the empty component and check testID
-    let emptyTree!: ReturnType<typeof create>;
-    act(() => {
-      emptyTree = create(emptyComponent as React.ReactElement);
+    it('shows "N items" count label matching bookmark count', () => {
+      mockBookmarks = [makeBookmark({ id: 'c1' }), makeBookmark({ id: 'c2' })];
+      const tree = render();
+      const countText = tree.root.findAll(
+        (node) =>
+          String(node.type) === 'Text' &&
+          Array.isArray(node.props.children) &&
+          node.props.children[0] === 2 &&
+          node.props.children[1] === ' items',
+      );
+      expect(countText.length).toBeGreaterThanOrEqual(1);
     });
-    expect(findByTestID(emptyTree, 'empty-library-state')).toBe(true);
-  });
 
-  // --- 5. FlatList key changes when viewMode switches grid/list ---
-  it('FlatList key switches between cols-1 and cols-2 based on numColumns', () => {
-    // Default: grid mode, width=390 → numColumns=2, key="cols-2"
-    const tree = render();
-    const flatList = tree.root.findByType(
-      require('react-native').FlatList,
-    );
-    // In grid mode with width>=380, numColumns should be 2
-    expect(flatList.props.numColumns).toBe(2);
-
-    // Narrow screen → numColumns=1, key="cols-1"
-    mockWidth = 320;
-    let tree2!: ReturnType<typeof create>;
-    act(() => {
-      tree2 = create(<LibraryScreen />);
+    it('shows Total stat value equal to bookmark count', () => {
+      mockBookmarks = [
+        makeBookmark({ id: 'd1' }),
+        makeBookmark({ id: 'd2' }),
+        makeBookmark({ id: 'd3' }),
+      ];
+      const tree = render();
+      const allTexts = tree.root.findAll(
+        (node) => String(node.type) === 'Text' && node.props.children === 3,
+      );
+      expect(allTexts.length).toBeGreaterThanOrEqual(1);
     });
-    const flatList2 = tree2.root.findByType(
-      require('react-native').FlatList,
-    );
-    expect(flatList2.props.numColumns).toBe(1);
   });
 
-  // --- 6. load() is called on mount when session is present ---
-  it('calls load() on mount when session is present', () => {
-    render();
-    expect(mockLoad).toHaveBeenCalledTimes(1);
+  // -------------------------------------------------------------------------
+  // (b) Empty state
+  // -------------------------------------------------------------------------
+  describe('(b) empty state', () => {
+    it('renders EmptyLibraryState "No bookmarks yet" when bookmarks is empty', () => {
+      mockBookmarks = [];
+      const tree = render();
+      expect(treeContainsText(tree, 'No bookmarks yet')).toBe(true);
+    });
+
+    it('shows "0 items" count label when bookmarks is empty', () => {
+      mockBookmarks = [];
+      const tree = render();
+      const countText = tree.root.findAll(
+        (node) =>
+          String(node.type) === 'Text' &&
+          Array.isArray(node.props.children) &&
+          node.props.children[0] === 0 &&
+          node.props.children[1] === ' items',
+      );
+      expect(countText.length).toBeGreaterThanOrEqual(1);
+    });
   });
 
-  // --- 7. load() is NOT called when session is null ---
-  it('does not call load() when session is null', () => {
-    mockSession = null;
-    render();
-    expect(mockLoad).not.toHaveBeenCalled();
+  // -------------------------------------------------------------------------
+  // (c) Search filter
+  // -------------------------------------------------------------------------
+  describe('(c) search filter', () => {
+    it('reduces displayed cards to those matching the query', () => {
+      mockBookmarks = [
+        makeBookmark({ id: 'f1', title: 'React Native guide', url: 'https://reactnative.dev' }),
+        makeBookmark({ id: 'f2', title: 'Expo documentation', url: 'https://expo.dev' }),
+        makeBookmark({ id: 'f3', title: 'TypeScript handbook', url: 'https://typescriptlang.org' }),
+      ];
+      const tree = render();
+
+      const input = tree.root.findAll(
+        (node) => node.props.placeholder === 'Search link',
+      )[0];
+      act(() => {
+        input.props.onChangeText('react');
+      });
+
+      expect(treeContainsText(tree, 'React Native guide')).toBe(true);
+      expect(treeContainsText(tree, 'Expo documentation')).toBe(false);
+      expect(treeContainsText(tree, 'TypeScript handbook')).toBe(false);
+    });
+
+    it('shows EmptyLibraryState with "No links match" when query has no matches', () => {
+      mockBookmarks = [
+        makeBookmark({ id: 'g1', title: 'Expo docs', url: 'https://expo.dev' }),
+      ];
+      const tree = render();
+
+      const input = tree.root.findAll(
+        (node) => node.props.placeholder === 'Search link',
+      )[0];
+      act(() => {
+        input.props.onChangeText('zzznomatch');
+      });
+
+      expect(treeContainsText(tree, 'No links match')).toBe(true);
+    });
   });
 
-  // --- 8. loading+empty state shows loading screen ---
-  it('renders loading screen when loading=true and bookmarks is empty', () => {
-    mockLoading = true;
-    mockBookmarks = [];
+  // -------------------------------------------------------------------------
+  // (d) Grid/List view toggle
+  // -------------------------------------------------------------------------
+  describe('(d) grid/list view toggle', () => {
+    it('renders ViewToggle with "Grid view" button when width >= 380', () => {
+      mockWidth = 390;
+      mockBookmarks = [makeBookmark({ id: 'h1' })];
+      const tree = render();
+      const gridBtns = tree.root.findAll(
+        (node) => node.props.accessibilityLabel === 'Grid view',
+      );
+      expect(gridBtns.length).toBeGreaterThanOrEqual(1);
+    });
 
-    const tree = render();
-    const json = tree.toJSON() as { props?: { style?: object } } | null;
-    // Should render the loadingContainer View (not a FlatList)
-    expect(tree.root.findAllByType(require('react-native').FlatList)).toHaveLength(0);
-    expect(json).not.toBeNull();
+    it('switching to list view via ViewToggle keeps all cards visible', () => {
+      mockBookmarks = [
+        makeBookmark({ id: 'i1', title: 'Alpha' }),
+        makeBookmark({ id: 'i2', title: 'Beta' }),
+      ];
+      const tree = render();
+
+      const listBtn = tree.root.findAll(
+        (node) => node.props.accessibilityLabel === 'List view',
+      )[0];
+      act(() => {
+        listBtn.props.onPress();
+      });
+
+      expect(treeContainsText(tree, 'Alpha')).toBe(true);
+      expect(treeContainsText(tree, 'Beta')).toBe(true);
+    });
+
+    it('width < 380 → numColumns===1', () => {
+      mockWidth = 320;
+      const tree = render();
+      const flatList = tree.root.findByType(
+        require('react-native').FlatList,
+      );
+      expect(flatList.props.numColumns).toBe(1);
+    });
   });
 
-  // --- 9. error state shows error screen ---
-  it('renders error screen when error is set', () => {
-    mockError = 'Something failed';
-
-    const tree = render();
-    // Should render error UI, not FlatList
-    expect(tree.root.findAllByType(require('react-native').FlatList)).toHaveLength(0);
+  // -------------------------------------------------------------------------
+  // (e) Loading state
+  // -------------------------------------------------------------------------
+  describe('(e) loading state', () => {
+    it('shows "Loading..." when loading=true and bookmarks is empty', () => {
+      mockLoading = true;
+      mockBookmarks = [];
+      const tree = render();
+      expect(treeContainsText(tree, 'Loading...')).toBe(true);
+    });
   });
 
-  // --- 10. onEndReachedThreshold is set to 0.5 ---
+  // -------------------------------------------------------------------------
+  // (f) Error state
+  // -------------------------------------------------------------------------
+  describe('(f) error state', () => {
+    it('shows "Something went wrong" when error is set', () => {
+      mockError = 'Network error';
+      mockBookmarks = [];
+      const tree = render();
+      expect(treeContainsText(tree, 'Something went wrong')).toBe(true);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // (g) FlatList pagination — onEndReached
+  // -------------------------------------------------------------------------
+  describe('(g) FlatList pagination', () => {
+    it('onEndReached triggers loadMore from the store', () => {
+      mockBookmarks = [makeBookmark({ id: 'bk1', title: 'Test' })];
+
+      const tree = render();
+      const flatList = tree.root.findByType(
+        require('react-native').FlatList,
+      );
+      act(() => {
+        flatList.props.onEndReached?.({ distanceFromEnd: 100 });
+      });
+
+      expect(mockLoadMore).toHaveBeenCalledTimes(1);
+    });
+
+    it('FlatList numColumns is 2 in grid mode with width >= 380', () => {
+      mockWidth = 390;
+      const tree = render();
+      const flatList = tree.root.findByType(
+        require('react-native').FlatList,
+      );
+      expect(flatList.props.numColumns).toBe(2);
+    });
+
+    it('FlatList numColumns is 1 with width < 380', () => {
+      mockWidth = 320;
+      const tree = render();
+      const flatList = tree.root.findByType(
+        require('react-native').FlatList,
+      );
+      expect(flatList.props.numColumns).toBe(1);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // (h) Footer spinner
+  // -------------------------------------------------------------------------
+  describe('(h) footer spinner', () => {
+    it('renders footer spinner (testID="loading-more-spinner") when loadingMore is true', () => {
+      mockLoadingMore = true;
+      const tree = render();
+      expect(findByTestID(tree, 'loading-more-spinner')).toBe(true);
+    });
+
+    it('does not render footer spinner when loadingMore is false', () => {
+      mockLoadingMore = false;
+      const tree = render();
+      expect(findByTestID(tree, 'loading-more-spinner')).toBe(false);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // (i) onEndReachedThreshold
+  // -------------------------------------------------------------------------
   it('onEndReachedThreshold is 0.5', () => {
     const tree = render();
     const flatList = tree.root.findByType(
       require('react-native').FlatList,
     );
     expect(flatList.props.onEndReachedThreshold).toBe(0.5);
+  });
+
+  // -------------------------------------------------------------------------
+  // (j) load() on mount
+  // -------------------------------------------------------------------------
+  describe('(j) load() on mount', () => {
+    it('calls load() on mount when session is present', () => {
+      render();
+      expect(mockLoad).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not call load() when session is null', () => {
+      mockSession = null;
+      render();
+      expect(mockLoad).not.toHaveBeenCalled();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Loading/Error screen: no FlatList rendered
+  // -------------------------------------------------------------------------
+  describe('early returns (loading/error screen)', () => {
+    it('renders loading screen (no FlatList) when loading=true and bookmarks is empty', () => {
+      mockLoading = true;
+      mockBookmarks = [];
+      const tree = render();
+      expect(tree.root.findAllByType(require('react-native').FlatList)).toHaveLength(0);
+    });
+
+    it('renders error screen (no FlatList) when error is set', () => {
+      mockError = 'Something failed';
+      const tree = render();
+      expect(tree.root.findAllByType(require('react-native').FlatList)).toHaveLength(0);
+    });
   });
 });
