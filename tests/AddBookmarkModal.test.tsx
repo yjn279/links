@@ -50,6 +50,7 @@ describe('AddBookmarkModal', () => {
           open={true}
           onClose={jest.fn()}
           onSave={jest.fn()}
+          existingTags={[]}
         />,
       );
       jest.runAllTimers();
@@ -65,6 +66,7 @@ describe('AddBookmarkModal', () => {
           open={false}
           onClose={jest.fn()}
           onSave={jest.fn()}
+          existingTags={[]}
         />,
       );
       jest.runAllTimers();
@@ -81,6 +83,7 @@ describe('AddBookmarkModal', () => {
           open={true}
           onClose={jest.fn()}
           onSave={jest.fn()}
+          existingTags={[]}
         />,
       );
       jest.runAllTimers();
@@ -98,6 +101,7 @@ describe('AddBookmarkModal', () => {
           onClose={jest.fn()}
           onSave={jest.fn()}
           defaultUrl="https://default.example.com"
+          existingTags={[]}
         />,
       );
       jest.runAllTimers();
@@ -108,7 +112,7 @@ describe('AddBookmarkModal', () => {
     expect(inputs.length).toBeGreaterThan(0);
   });
 
-  it('calls onSave with trimmed URL when Save is pressed with a valid URL (AddBookmarkModal.tsx:62-66)', () => {
+  it('calls onSave with trimmed URL and empty tag array when Save is pressed with a valid URL (AddBookmarkModal.tsx:62-66)', () => {
     const onSave = jest.fn();
     let tree: ReturnType<typeof create>;
     act(() => {
@@ -117,6 +121,7 @@ describe('AddBookmarkModal', () => {
           open={true}
           onClose={jest.fn()}
           onSave={onSave}
+          existingTags={[]}
         />,
       );
       jest.runAllTimers();
@@ -134,7 +139,8 @@ describe('AddBookmarkModal', () => {
       saveBtn!.props.onPress();
     });
     expect(onSave).toHaveBeenCalledTimes(1);
-    expect(onSave).toHaveBeenCalledWith('https://trimmed.example.com');
+    // onSave signature is (url: string, tagNames: string[]) — no tags selected => empty array
+    expect(onSave).toHaveBeenCalledWith('https://trimmed.example.com', []);
   });
 
   it('does NOT call onSave when Save is pressed with an empty URL (AddBookmarkModal.tsx:63-64)', () => {
@@ -146,6 +152,7 @@ describe('AddBookmarkModal', () => {
           open={true}
           onClose={jest.fn()}
           onSave={onSave}
+          existingTags={[]}
         />,
       );
       jest.runAllTimers();
@@ -169,6 +176,7 @@ describe('AddBookmarkModal', () => {
           open={true}
           onClose={jest.fn()}
           onSave={onSave}
+          existingTags={[]}
         />,
       );
       jest.runAllTimers();
@@ -195,6 +203,7 @@ describe('AddBookmarkModal', () => {
           open={true}
           onClose={onClose}
           onSave={jest.fn()}
+          existingTags={[]}
         />,
       );
       jest.runAllTimers();
@@ -216,6 +225,7 @@ describe('AddBookmarkModal', () => {
           open={true}
           onClose={onClose}
           onSave={jest.fn()}
+          existingTags={[]}
         />,
       );
       jest.runAllTimers();
