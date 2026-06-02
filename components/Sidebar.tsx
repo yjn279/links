@@ -32,10 +32,11 @@ type Props = {
   view: SidebarView;
   onSelect: (view: SidebarView) => void;
   onClose: () => void;
+  onSettings: () => void;
   stats: Stats;
 };
 
-export function Sidebar({ open, view, onSelect, onClose, stats }: Props) {
+export function Sidebar({ open, view, onSelect, onClose, onSettings, stats }: Props) {
   const translateX = React.useRef(new Animated.Value(-320)).current;
   const scrimOpacity = React.useRef(new Animated.Value(0)).current;
   const [scrimVisible, setScrimVisible] = React.useState(open);
@@ -154,7 +155,13 @@ export function Sidebar({ open, view, onSelect, onClose, stats }: Props) {
 
             {/* Footer */}
             <View style={styles.foot}>
-              <Pressable style={styles.item}>
+              <Pressable
+                style={styles.item}
+                onPress={() => {
+                  onSettings();
+                  onClose();
+                }}
+              >
                 <Icon name="settings" size={18} color={color.ink2} />
                 <Text style={styles.itemLabel}>Settings</Text>
               </Pressable>

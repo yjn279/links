@@ -18,12 +18,13 @@ import { color, radius, sp, typeScale } from '../src/theme/tokens';
 type Props = {
   onMenu: () => void;
   onAdd: () => void;
+  onAccount: () => void;
   query: string;
   setQuery: (q: string) => void;
   userInitial?: string;
 };
 
-export function TopBar({ onMenu, onAdd, query, setQuery, userInitial = 'L' }: Props) {
+export function TopBar({ onMenu, onAdd, onAccount, query, setQuery, userInitial = 'L' }: Props) {
   const [menuPressed, setMenuPressed] = useState(false);
   const [bellPressed, setBellPressed] = useState(false);
   const [fabPressed, setFabPressed] = useState(false);
@@ -82,9 +83,14 @@ export function TopBar({ onMenu, onAdd, query, setQuery, userInitial = 'L' }: Pr
       </Pressable>
 
       {/* Avatar */}
-      <View style={styles.avatar} accessibilityLabel="Account">
+      <Pressable
+        onPress={onAccount}
+        style={styles.avatar}
+        accessibilityLabel="Account"
+        hitSlop={4}
+      >
         <Text style={styles.avatarText}>{userInitial}</Text>
-      </View>
+      </Pressable>
     </View>
   );
 }

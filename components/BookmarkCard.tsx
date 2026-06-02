@@ -14,6 +14,7 @@ type Props = {
   favorite: boolean;
   onToggleFav: (id: string) => void;
   onOpen?: (bookmark: Bookmark) => void;
+  onLongPress?: (bookmark: Bookmark) => void;
 };
 
 /** Derive a display hostname from a URL string */
@@ -25,7 +26,7 @@ function siteFromUrl(url: string): string {
   }
 }
 
-export function BookmarkCard({ bookmark, favorite, onToggleFav, onOpen }: Props) {
+export function BookmarkCard({ bookmark, favorite, onToggleFav, onOpen, onLongPress }: Props) {
   const thumbKey = pickThumb(bookmark.id);
   const site = bookmark.site_name ?? siteFromUrl(bookmark.url);
   const timeStr = relativeTime(bookmark.created_at);
@@ -34,6 +35,7 @@ export function BookmarkCard({ bookmark, favorite, onToggleFav, onOpen }: Props)
   return (
     <Pressable
       onPress={() => onOpen?.(bookmark)}
+      onLongPress={() => onLongPress?.(bookmark)}
       style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
       testID="bm-card"
     >
