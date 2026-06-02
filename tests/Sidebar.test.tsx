@@ -62,6 +62,7 @@ describe('Sidebar', () => {
           view="all"
           onSelect={jest.fn()}
           onClose={jest.fn()}
+          onSettings={jest.fn()}
           stats={makeStats()}
         />,
       );
@@ -78,6 +79,7 @@ describe('Sidebar', () => {
           view="all"
           onSelect={jest.fn()}
           onClose={jest.fn()}
+          onSettings={jest.fn()}
           stats={makeStats()}
         />,
       );
@@ -95,6 +97,7 @@ describe('Sidebar', () => {
           view="all"
           onSelect={jest.fn()}
           onClose={jest.fn()}
+          onSettings={jest.fn()}
           stats={makeStats()}
         />,
       );
@@ -115,6 +118,7 @@ describe('Sidebar', () => {
           view="all"
           onSelect={jest.fn()}
           onClose={jest.fn()}
+          onSettings={jest.fn()}
           stats={makeStats()}
         />,
       );
@@ -137,6 +141,7 @@ describe('Sidebar', () => {
           view="all"
           onSelect={onSelect}
           onClose={onClose}
+          onSettings={jest.fn()}
           stats={makeStats()}
         />,
       );
@@ -161,6 +166,7 @@ describe('Sidebar', () => {
           view="all"
           onSelect={onSelect}
           onClose={onClose}
+          onSettings={jest.fn()}
           stats={makeStats()}
         />,
       );
@@ -185,6 +191,7 @@ describe('Sidebar', () => {
           view="all"
           onSelect={onSelect}
           onClose={onClose}
+          onSettings={jest.fn()}
           stats={makeStats()}
         />,
       );
@@ -208,6 +215,7 @@ describe('Sidebar', () => {
           view="all"
           onSelect={jest.fn()}
           onClose={onClose}
+          onSettings={jest.fn()}
           stats={makeStats()}
         />,
       );
@@ -221,7 +229,7 @@ describe('Sidebar', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('current-spec: Settings item exists but has no onPress handler (Sidebar.tsx:156-161)', () => {
+  it('Settings item has onPress handler wired to onSettings (Sidebar.tsx:156-165)', () => {
     let tree: ReturnType<typeof create>;
     act(() => {
       tree = create(
@@ -230,16 +238,14 @@ describe('Sidebar', () => {
           view="all"
           onSelect={jest.fn()}
           onClose={jest.fn()}
+          onSettings={jest.fn()}
           stats={makeStats()}
         />,
       );
     });
-    // Settings Pressable wraps "Settings" text but has no onPress configured
+    // Settings Pressable wraps "Settings" text and has an onPress handler
     const settingsPressable = findPressableByText(tree!, 'Settings');
-    // The Pressable for Settings exists in the DOM
-    expect(settingsPressable).toBeUndefined();
-    // Settings is rendered as a Pressable WITHOUT onPress — it won't be found by
-    // the findPressableByText helper (which filters for onPress !== undefined).
+    expect(settingsPressable).toBeDefined();
     // Verify "Settings" text is present in the rendered output.
     const json = JSON.stringify(tree!.toJSON());
     expect(json).toContain('Settings');

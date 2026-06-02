@@ -22,6 +22,7 @@ describe('TopBar', () => {
         <TopBar
           onMenu={jest.fn()}
           onAdd={jest.fn()}
+          onAccount={jest.fn()}
           query=""
           setQuery={jest.fn()}
           userInitial="T"
@@ -38,6 +39,7 @@ describe('TopBar', () => {
         <TopBar
           onMenu={jest.fn()}
           onAdd={jest.fn()}
+          onAccount={jest.fn()}
           query=""
           setQuery={jest.fn()}
           userInitial="Z"
@@ -56,6 +58,7 @@ describe('TopBar', () => {
         <TopBar
           onMenu={jest.fn()}
           onAdd={jest.fn()}
+          onAccount={jest.fn()}
           query=""
           setQuery={setQuery}
         />,
@@ -80,6 +83,7 @@ describe('TopBar', () => {
         <TopBar
           onMenu={onMenu}
           onAdd={jest.fn()}
+          onAccount={jest.fn()}
           query=""
           setQuery={jest.fn()}
         />,
@@ -102,6 +106,7 @@ describe('TopBar', () => {
         <TopBar
           onMenu={jest.fn()}
           onAdd={onAdd}
+          onAccount={jest.fn()}
           query=""
           setQuery={jest.fn()}
         />,
@@ -123,6 +128,7 @@ describe('TopBar', () => {
         <TopBar
           onMenu={jest.fn()}
           onAdd={jest.fn()}
+          onAccount={jest.fn()}
           query=""
           setQuery={jest.fn()}
         />,
@@ -143,6 +149,7 @@ describe('TopBar', () => {
         <TopBar
           onMenu={jest.fn()}
           onAdd={jest.fn()}
+          onAccount={jest.fn()}
           query=""
           setQuery={jest.fn()}
         />,

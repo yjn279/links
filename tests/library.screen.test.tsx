@@ -16,7 +16,7 @@
 import React from 'react';
 import { act, create } from 'react-test-renderer';
 import * as ReactNative from 'react-native';
-import type { Bookmark } from '../src/types';
+import type { Bookmark, Tag } from '../src/types';
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -43,15 +43,19 @@ let mockLoading = false;
 let mockError: string | null = null;
 const mockLoad = jest.fn();
 
+let mockTags: Tag[] = [];
+
 jest.mock('../src/bookmarks/store', () => ({
   useBookmarksStore: (selector: (s: {
     bookmarks: Bookmark[];
+    tags: Tag[];
     loading: boolean;
     error: string | null;
     load: () => void;
   }) => unknown) =>
     selector({
       bookmarks: mockBookmarks,
+      tags: mockTags,
       loading: mockLoading,
       error: mockError,
       load: mockLoad,
@@ -109,6 +113,7 @@ describe('LibraryScreen', () => {
 
   beforeEach(() => {
     mockBookmarks = [];
+    mockTags = [];
     mockLoading = false;
     mockError = null;
     mockLoad.mockClear();
