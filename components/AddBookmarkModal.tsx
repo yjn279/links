@@ -1,7 +1,7 @@
 /**
  * AddBookmarkModal.tsx — Liquid Glass modal for adding bookmarks
  * Mirrors design-spec/ui_kits/links-app/AddBookmarkModal.jsx + styles.css .modal-*
- * Props: { open, onClose, onSave, defaultUrl? }
+ * Props: { open, onClose, onSave, defaultUrl?, existingTags }
  */
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -17,17 +17,20 @@ import {
 } from 'react-native';
 import { GlassSurface } from './GlassSurface';
 import { Icon } from './Icon';
+import { TagChipEditor } from './TagChipEditor';
 import { color, radius, sp, typeScale } from '../src/theme/tokens';
 
 type Props = {
   open: boolean;
   onClose: () => void;
-  onSave: (url: string) => void;
+  onSave: (url: string, tagNames: string[]) => void;
   defaultUrl?: string;
+  existingTags: string[];
 };
 
-export function AddBookmarkModal({ open, onClose, onSave, defaultUrl }: Props) {
+export function AddBookmarkModal({ open, onClose, onSave, defaultUrl, existingTags }: Props) {
   const [url, setUrl] = useState(defaultUrl ?? '');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const inputRef = useRef<TextInput>(null);
   const scrimOpacity = useRef(new Animated.Value(0)).current;
   const modalScale = useRef(new Animated.Value(0.96)).current;
@@ -62,8 +65,9 @@ export function AddBookmarkModal({ open, onClose, onSave, defaultUrl }: Props) {
   const handleSave = () => {
     const trimmed = url.trim();
     if (!trimmed) return;
-    onSave(trimmed);
+    onSave(trimmed, selectedTags);
     setUrl('');
+    setSelectedTags([]);
   };
 
   const isReady = url.trim().length > 0;
@@ -118,6 +122,15 @@ export function AddBookmarkModal({ open, onClose, onSave, defaultUrl }: Props) {
               onSubmitEditing={handleSave}
               onFocus={() => setFocused(true)}
               onBlur={() => setFocused(false)}
+            />
+          </View>
+
+          {/* Tag selector */}
+          <View style={styles.tagSection}>
+            <TagChipEditor
+              existingTags={existingTags}
+              selected={selectedTags}
+              onChange={setSelectedTags}
             />
           </View>
 
@@ -231,6 +244,9 @@ const styles = StyleSheet.create({
     ...typeScale.body,
     color: color.ink,
     ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as object : {}),
+  },
+  tagSection: {
+    marginBottom: 16,
   },
   actions: {
     flexDirection: 'row',

@@ -179,7 +179,7 @@ links/
 ├── components/
 │   ├── BookmarkRow.tsx          一覧行コンポーネント
 │   ├── TagChipEditor.tsx        タグ編集 UI
-│   ├── BookmarkFilters.tsx      フィルタ / ソート UI
+│   ├── FilterSortBar.tsx        タグ AND フィルタ・ソートキー・昇降順切替 UI
 │   └── AuthForm.tsx             ログイン / サインアップ共通フォーム
 ├── src/
 │   ├── supabase.ts              Supabase クライアント（SecureStore adapter）

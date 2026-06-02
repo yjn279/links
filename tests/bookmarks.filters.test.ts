@@ -117,6 +117,22 @@ describe('applyFilters', () => {
       const result = applyFilters(ALL, { tagIds: [], query: 'zzz-no-match', sortAsc: false });
       expect(result).toHaveLength(0);
     });
+
+    it('case 11: query matches description when title is null', () => {
+      const bkDesc = makeBookmark('bk-desc', {
+        title: null,
+        url: 'https://example.com/bk-desc',
+        description: 'xylophone-unique-term overview',
+        tags: [],
+        created_at: '2026-01-05T10:00:00Z',
+      });
+      const result = applyFilters([...ALL, bkDesc], {
+        tagIds: [],
+        query: 'xylophone-unique-term',
+        sortAsc: false,
+      });
+      expect(result.map((b) => b.id)).toEqual(['bk-desc']);
+    });
   });
 
   describe('sort', () => {
@@ -144,6 +160,94 @@ describe('applyFilters', () => {
         sortAsc: true,
       });
       expect(result.map((b) => b.id)).toEqual(['bk3']);
+    });
+  });
+
+  describe('sortKey extension (Issue #10)', () => {
+    // Fixtures with distinct updated_at, title, site_name values for deterministic ordering
+    const bkA = makeBookmark('bkA', {
+      title: 'Alpha',
+      site_name: 'Zeta Site',
+      created_at: '2026-03-01T00:00:00Z',
+      updated_at: '2026-03-03T00:00:00Z',
+    });
+    const bkB = makeBookmark('bkB', {
+      title: 'Beta',
+      site_name: 'Alpha Site',
+      created_at: '2026-03-02T00:00:00Z',
+      updated_at: '2026-03-01T00:00:00Z',
+    });
+    const bkC = makeBookmark('bkC', {
+      title: null,
+      site_name: null,
+      created_at: '2026-03-03T00:00:00Z',
+      updated_at: '2026-03-02T00:00:00Z',
+    });
+    const SET = [bkA, bkB, bkC];
+
+    it('case 11: sortKey omitted defaults to created_at order', () => {
+      const asc = applyFilters(SET, { tagIds: [], query: '', sortAsc: true });
+      expect(asc.map((b) => b.id)).toEqual(['bkA', 'bkB', 'bkC']);
+      const desc = applyFilters(SET, { tagIds: [], query: '', sortAsc: false });
+      expect(desc.map((b) => b.id)).toEqual(['bkC', 'bkB', 'bkA']);
+    });
+
+    it('case 12: sortKey=created_at asc — oldest first', () => {
+      const result = applyFilters(SET, { tagIds: [], query: '', sortAsc: true, sortKey: 'created_at' });
+      expect(result.map((b) => b.id)).toEqual(['bkA', 'bkB', 'bkC']);
+    });
+
+    it('case 13: sortKey=created_at desc — newest first', () => {
+      const result = applyFilters(SET, { tagIds: [], query: '', sortAsc: false, sortKey: 'created_at' });
+      expect(result.map((b) => b.id)).toEqual(['bkC', 'bkB', 'bkA']);
+    });
+
+    it('case 14: sortKey=updated_at asc — earliest updated first', () => {
+      // bkB updated 03-01, bkC updated 03-02, bkA updated 03-03
+      const result = applyFilters(SET, { tagIds: [], query: '', sortAsc: true, sortKey: 'updated_at' });
+      expect(result.map((b) => b.id)).toEqual(['bkB', 'bkC', 'bkA']);
+    });
+
+    it('case 15: sortKey=updated_at desc — latest updated first', () => {
+      // bkA updated 03-03, bkC updated 03-02, bkB updated 03-01
+      const result = applyFilters(SET, { tagIds: [], query: '', sortAsc: false, sortKey: 'updated_at' });
+      expect(result.map((b) => b.id)).toEqual(['bkA', 'bkC', 'bkB']);
+    });
+
+    it('case 16: sortKey=title asc — A-Z, null at end', () => {
+      // Alpha < Beta, null (bkC) always last
+      const result = applyFilters(SET, { tagIds: [], query: '', sortAsc: true, sortKey: 'title' });
+      expect(result.map((b) => b.id)).toEqual(['bkA', 'bkB', 'bkC']);
+    });
+
+    it('case 17: sortKey=title desc — Z-A, null still at end', () => {
+      // Beta > Alpha in desc, null (bkC) always last regardless of direction
+      const result = applyFilters(SET, { tagIds: [], query: '', sortAsc: false, sortKey: 'title' });
+      expect(result.map((b) => b.id)).toEqual(['bkB', 'bkA', 'bkC']);
+    });
+
+    it('case 18: sortKey=site_name asc — A-Z, null at end', () => {
+      // "Alpha Site" < "Zeta Site", null (bkC) always last
+      const result = applyFilters(SET, { tagIds: [], query: '', sortAsc: true, sortKey: 'site_name' });
+      expect(result.map((b) => b.id)).toEqual(['bkB', 'bkA', 'bkC']);
+    });
+
+    it('case 19: sortKey=site_name desc — Z-A, null still at end', () => {
+      // "Zeta Site" > "Alpha Site" in desc, null (bkC) always last
+      const result = applyFilters(SET, { tagIds: [], query: '', sortAsc: false, sortKey: 'site_name' });
+      expect(result.map((b) => b.id)).toEqual(['bkA', 'bkB', 'bkC']);
+    });
+
+    it('case 20: null title in original ALL fixtures (bk4) sorts to end with sortKey=title asc', () => {
+      const result = applyFilters(ALL, { tagIds: [], query: '', sortAsc: true, sortKey: 'title' });
+      const ids = result.map((b) => b.id);
+      expect(ids[ids.length - 1]).toBe('bk4');
+    });
+
+    it('case 21: null title in original ALL fixtures (bk4) sorts to end with sortKey=title desc', () => {
+      const result = applyFilters(ALL, { tagIds: [], query: '', sortAsc: false, sortKey: 'title' });
+      const ids = result.map((b) => b.id);
+      expect(ids[ids.length - 1]).toBe('bk4');
     });
   });
 });
