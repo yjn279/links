@@ -1,6 +1,8 @@
+import { openBrowserAsync } from 'expo-web-browser';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -17,6 +19,7 @@ import { TopBar } from '../../components/TopBar';
 import { ViewToggle } from '../../components/ViewToggle';
 import type { ViewMode } from '../../components/ViewToggle';
 import { useAuth } from '../../src/auth/use-auth';
+import { isOpenableUrl } from '../../src/lib/url';
 import { applyFilters } from '../../src/bookmarks/filters';
 import type { SortKey } from '../../src/bookmarks/filters';
 import { useBookmarksStore } from '../../src/bookmarks/store';
@@ -117,8 +120,16 @@ export default function LibraryScreen() {
     }
   }
 
-  const openBookmark = (_b: Bookmark) => {
-    // Future: open detail or URL
+  const openBookmark = (b: Bookmark) => {
+    if (isOpenableUrl(b.url)) {
+      void openBrowserAsync(b.url);
+    } else {
+      Alert.alert('開けません', 'このリンクは開けません。');
+    }
+  };
+
+  const editBookmark = (b: Bookmark) => {
+    router.push({ pathname: '/(app)/edit/[id]', params: { id: b.id } });
   };
 
   return (
@@ -202,6 +213,7 @@ export default function LibraryScreen() {
                           favorite={favorites.has(item.id)}
                           onToggleFav={toggleFav}
                           onOpen={openBookmark}
+                          onLongPress={editBookmark}
                         />
                       </View>
                     ) : (
@@ -220,6 +232,7 @@ export default function LibraryScreen() {
                   favorite={favorites.has(item.id)}
                   onToggleFav={toggleFav}
                   onOpen={openBookmark}
+                  onLongPress={editBookmark}
                 />
               ))}
             </View>
