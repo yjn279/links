@@ -120,6 +120,7 @@ export default function LibraryScreen() {
         view={sidebarView}
         onSelect={setSidebarView}
         onClose={() => setSidebarOpen(false)}
+        onSettings={() => router.push('/(app)/settings')}
         stats={stats}
       />
 
@@ -133,6 +134,7 @@ export default function LibraryScreen() {
         <TopBar
           onMenu={() => setSidebarOpen(true)}
           onAdd={() => router.push('/(app)/add')}
+          onAccount={() => router.push('/(app)/settings')}
           query={query}
           setQuery={setQuery}
           userInitial={session?.user.email?.[0]?.toUpperCase() ?? 'L'}
