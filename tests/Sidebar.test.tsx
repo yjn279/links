@@ -2,7 +2,7 @@
  * Tests for components/Sidebar.tsx
  * Verifies: render (open=true), brand text, nav items + counts, nav select calls
  * onSelect+onClose, Collections item select, Close menu button, and current-spec:
- * Settings item has no onPress handler.
+ * Settings item calls onSettings and onClose when pressed (#33).
  *
  * Animated.timing callbacks (setScrimVisible) are driven with jest.useFakeTimers().
  */
@@ -229,7 +229,9 @@ describe('Sidebar', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('Settings item exists and has onPress handler (Sidebar.tsx:158-163)', () => {
+  it('current-spec: Settings item calls onSettings and onClose when pressed (Sidebar.tsx:158-163, #33)', () => {
+    const onSettings = jest.fn();
+    const onClose = jest.fn();
     let tree: ReturnType<typeof create>;
     act(() => {
       tree = create(
@@ -237,18 +239,19 @@ describe('Sidebar', () => {
           open={true}
           view="all"
           onSelect={jest.fn()}
-          onClose={jest.fn()}
-          onSettings={jest.fn()}
+          onClose={onClose}
+          onSettings={onSettings}
           stats={makeStats()}
         />,
       );
     });
-    // Settings Pressable wraps "Settings" text and has onPress configured
+    // Settings Pressable has an onPress that calls onSettings() then onClose()
     const settingsPressable = findPressableByText(tree!, 'Settings');
-    // The Pressable for Settings is found (it has onPress wired to onSettings)
     expect(settingsPressable).toBeDefined();
-    // Verify "Settings" text is present in the rendered output.
-    const json = JSON.stringify(tree!.toJSON());
-    expect(json).toContain('Settings');
+    act(() => {
+      settingsPressable!.props.onPress();
+    });
+    expect(onSettings).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
