@@ -42,6 +42,8 @@ Expo Router を用いたブックマークアプリで、フロントエンド�
 
 `npx expo start` を起動した後、ターミナルに表示される `exp://192.168.x.x:8081` 形式の URL を必ずユーザーに共有する。QR コードだけでは手元で開けないケースがあるため、URL 文字列をメッセージに貼り付ける。同一 Wi-Fi で繋がらない場合は `npx expo start --tunnel` で ngrok 経由の URL を共有する。
 
+PR で成果物を確認する際は、EAS のデバイスビルド ( `preview` ラベル ) に頼らず Expo Go を既定の手段とする。`npx expo start --tunnel` で得た `exp://` 形式の URL を PR 本文またはコメントに記載し、Expo Go アプリで開けば実機で確認できる。QR は URL から生成できるため URL を主に記載し、必要に応じて QR 画像を併記する。トンネル URL は開発サーバを起動している間だけ有効な点に注意する。ただし Expo Go は Expo SDK の範囲に限られ、`expo-share-intent` などネイティブ機能は再現しないため、それらの確認は `preview` ラベルの EAS ビルドを使う。
+
 ### iOS Simulator
 
 `npx expo run:ios --device "iPhone 16"` を使うと Expo CLI が prebuild、 `xcodebuild` 、 `simctl install` 、 `simctl launch` を一括で実行する。 `--device` の値は `xcrun simctl list devices available` で確認できる任意のシミュレータ名でよい。Share Extension は Simulator 内 Safari から URL を開き、共有シートで対象アプリを選ぶ流れで再現できる。初回は共有シート末尾の More から Edit で Links を有効化する必要がある。
