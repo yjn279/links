@@ -8,7 +8,7 @@ EAS と GitHub Actions を用いた配信自動化の構成をまとめる。プ
 
 | 起点 | ワークフロー | iOS | Android |
 | :-- | :-- | :-- | :-- |
-| Pull Request の作成・更新 | `preview.yml` | store ビルドを TestFlight へ自動 submit | 内部配布 APK をビルドし PR にリンクをコメント |
+| `preview` ラベル付き PR | `preview.yml` | store ビルドを TestFlight へ自動 submit | 内部配布 APK をビルドし PR にリンクをコメント |
 | GitHub Release の publish | `release.yml` | store ビルドを App Store Connect へ自動 submit | 対象外 ( 後述 ) |
 
 ```mermaid
@@ -35,14 +35,14 @@ flowchart LR
 
 ## ブランチプレビュー
 
-`preview.yml` は PR の作成、再 open 、 draft からの ready 化、追加 push で起動する。 draft PR ではビルドしない。 iOS と Android のビルドを EAS にキューし、両者のビルドページへのリンクを PR に 1 件のコメントとして掲示する ( 追加 push のたびに同じコメントを更新する ) 。
+`preview.yml` は EAS のホストビルド枠を消費するため、全 PR を自動ビルドせず `preview` ラベルが付いた PR だけを対象とする ( opt-in ) 。ラベル付与時に iOS と Android のビルドを 1 本ずつ EAS にキューし、以降そのブランチへの push 毎に追従ビルドする。ラベルを外すと追従を止める。両ビルドのページへのリンクは PR に 1 件のコメントとして掲示する ( push のたびに同じコメントを更新する ) 。いつ・どの PR にラベルを付けるかの運用判断は [`workflow.md`](./workflow.md) に従う。
 
 プラットフォームごとの確認方法は次のとおり。バージョン表記は共通で、 build number が PR ごとに増えるため、どのビルドがどの PR かは EAS の build message ( `PR #<番号> · <ブランチ> · <タイトル>` ) で判別する。
 
 - iOS : ビルド完了後、 TestFlight アプリに自動配信される。内部テストグループ "Internal" のテスターがそのまま検証できる。
 - Android : PR コメントのリンクを Android 端末で開き、 Install をタップして APK を直接インストールする。 Google Play や Play Console は不要。
 
-手動で再ビルドしたい場合は Actions タブから `Preview` ワークフローを `workflow_dispatch` で実行する。
+ラベルを付けずに任意のブランチをビルドしたい場合は、 Actions タブから `Preview` ワークフローを `workflow_dispatch` で実行する。
 
 ## リリース
 
@@ -94,4 +94,6 @@ Android の署名鍵 ( keystore ) は初回ビルド時に EAS が自動生成�
 | Supabase 接続が本番ビルドで失敗する | `eas env:list production` と `eas env:list preview` に `EXPO_PUBLIC_SUPABASE_*` があるか確認する |
 | build number 重複で submit 不可 | `eas.json` の `cli.appVersionSource` が `remote` 、 `production` が `autoIncrement: true` か確認する |
 | iOS 署名エラーで CI が失敗する | 署名証明書の新規作成は非対話で通らない。初回はローカルの対話ビルドで EAS に生成・保存しておく |
-| PR コメントが付かない | `preview.yml` の `permissions.pull-requests` が `write` か、 draft PR でないか確認する |
+| `eas build` がキュー投入で失敗する | EAS の無料枠 ( 月間ビルド数の上限 ) 超過の可能性が高い。月次リセットを待つかプランを上げる。日常検証はローカル ( Expo Go・Simulator ) に寄せ、 `preview` ラベルは必要な PR にだけ付けて消費を抑える |
+| プレビューがビルドされない | PR に `preview` ラベルが付いているか確認する。ラベル無しの PR は意図的にビルドしない |
+| PR コメントが付かない | `preview.yml` の `permissions.pull-requests` が `write` か確認する |
