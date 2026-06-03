@@ -1,14 +1,16 @@
 name: Preview
 
-# PR を作成・更新すると、その時点のコードをブランチプレビューとして配信する。
+# PR に `preview` ラベルを付けると、その時点のコードをブランチプレビューとして配信する ( opt-in ) 。
 #   - iOS    : production プロファイルで store ビルドし TestFlight へ自動 submit する。
 #   - Android: preview プロファイルで内部配布 APK をビルドし、インストール用リンクを PR にコメントする。
+# EAS ホストビルドの無料枠を消費するため、全 PR の自動ビルドはしない。ラベルを付けた PR だけ対象とし、
+# 付与時に 1 本・以降はその PR への push 毎に追従ビルドする ( ラベルを外せば止まる ) 。
 # 実ビルドと submit は EAS のサーバ側で実行されるため ( --no-wait ) 、
 # GitHub Actions はビルドをキューに積んでリンクを返すだけで完了する。進捗は EAS と TestFlight 側で追う。
 
 on:
   pull_request:
-    types: [opened, reopened, ready_for_review, synchronize]
+    types: [labeled, synchronize]
   workflow_dispatch:
 
 concurrency:
@@ -23,8 +25,11 @@ jobs:
   preview:
     name: Build branch preview ( iOS TestFlight + Android APK )
     runs-on: ubuntu-latest
-    # draft PR ではビルドしない ( EAS のビルド枠を無駄にしないため )
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    # `preview` ラベルが付いた PR だけビルドする ( EAS ビルド枠を消費するため opt-in にする ) 。
+    # 手動実行 ( workflow_dispatch ) はラベル不要で常に実行できる。
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.pull_request.labels.*.name, 'preview')
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
       EAS_ACCOUNT: yjn279

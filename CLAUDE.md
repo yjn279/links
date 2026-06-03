@@ -70,6 +70,7 @@ Simulator でも再現できない場合のみ、ユーザーに次のテンプ�
 
 | ドキュメント | 内容 |
 | :-- | :-- |
+| [`docs/workflow.md`](./docs/workflow.md) | ブランチ運用・検証の段階・テストリリース・本番リリースの運用フロー |
 | [`docs/ci-cd.md`](./docs/ci-cd.md) | EAS と GitHub Actions による配信自動化 ( PR プレビューとリリース ) の構成 |
 | [`docs/share-extension.md`](./docs/share-extension.md) | iOS Share Extension のビルド方針とトラブルシューティング |
 | [`docs/rls-checklist.md`](./docs/rls-checklist.md) | Supabase RLS の動作確認チェックリスト |
