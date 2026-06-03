@@ -42,7 +42,7 @@ let mockBookmarks: Bookmark[] = [];
 let mockLoading = false;
 let mockError: string | null = null;
 const mockLoad = jest.fn();
-
+// tags is required by LibraryScreen (s.tags) and passed to FilterSortBar (#47)
 let mockTags: Tag[] = [];
 
 jest.mock('../src/bookmarks/store', () => ({
