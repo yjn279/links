@@ -1,7 +1,8 @@
 /**
  * Tests for components/TopBar.tsx
  * Verifies: render, search input (setQuery), menu tap (onMenu), add tap (onAdd),
- * userInitial display, and current-spec: Notifications bell has no onPress handler.
+ * userInitial display, avatar tap (onAccount, #33), and current-spec:
+ * Notifications bell has no onPress handler.
  *
  * safe-area mocked to fixed insets.
  */
@@ -119,6 +120,30 @@ describe('TopBar', () => {
       addBtn.props.onPress();
     });
     expect(onAdd).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls onAccount when the avatar button is pressed (TopBar.tsx:86-93, #33)', () => {
+    const onAccount = jest.fn();
+    let tree: ReturnType<typeof create>;
+    act(() => {
+      tree = create(
+        <TopBar
+          onMenu={jest.fn()}
+          onAdd={jest.fn()}
+          onAccount={onAccount}
+          query=""
+          setQuery={jest.fn()}
+        />,
+      );
+    });
+    const avatarBtn = tree!.root.findAll(
+      (node) => node.props.accessibilityLabel === 'Account',
+    )[0];
+    expect(avatarBtn).toBeDefined();
+    act(() => {
+      avatarBtn.props.onPress();
+    });
+    expect(onAccount).toHaveBeenCalledTimes(1);
   });
 
   it('current-spec: Notifications bell element exists but has no onPress handler (TopBar.tsx:73-82)', () => {

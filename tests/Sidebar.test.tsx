@@ -2,7 +2,7 @@
  * Tests for components/Sidebar.tsx
  * Verifies: render (open=true), brand text, nav items + counts, nav select calls
  * onSelect+onClose, Collections item select, Close menu button, and current-spec:
- * Settings item has no onPress handler.
+ * Settings item calls onSettings and onClose when pressed (#33).
  *
  * Animated.timing callbacks (setScrimVisible) are driven with jest.useFakeTimers().
  */
