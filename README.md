@@ -222,5 +222,4 @@ links/
 ## 既知の制限
 
 - Share Extension は Expo Go では動作しません（Development Build が必要）。
-- `expo-share-intent` が新アーキテクチャ非対応の場合は `app.json` の `newArchEnabled` を `false` にしてください。
 - Android の Share Intent は実機 / エミュレータでの動作確認が必要です。Simulator では検証できません（`npx expo run:android` または EAS ビルドを使用してください）。
