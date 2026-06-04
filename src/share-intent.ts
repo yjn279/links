@@ -68,3 +68,29 @@ export function handleSharedUrl(url: string, isLoggedIn: boolean): void {
   if (!target) return;
   router.push(target);
 }
+
+/**
+ * Pure function: determines whether the Android share handler should navigate.
+ * Returns true only on Android when auth has resolved and a non-empty URL is present.
+ * Exported for unit testing without native module dependencies.
+ */
+export function shouldHandleAndroidShareIntent({
+  platform,
+  hasShareIntent,
+  webUrl,
+  authLoading,
+  navigated,
+}: {
+  platform: string;
+  hasShareIntent: boolean;
+  webUrl: string | null | undefined;
+  authLoading: boolean;
+  navigated: boolean;
+}): boolean {
+  if (platform !== 'android') return false;
+  if (authLoading) return false;
+  if (navigated) return false;
+  if (!hasShareIntent) return false;
+  if (!webUrl) return false;
+  return true;
+}

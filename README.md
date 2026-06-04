@@ -1,6 +1,6 @@
 # Links
 
-iOS/Android ネイティブのブックマークアプリ。URL を保存し、タグ付け・フィルタ・ソートで管理できます。iOS Share Extension から任意のアプリで URL を直接送ることも可能です。
+iOS/Android ネイティブのブックマークアプリ。URL を保存し、タグ付け・フィルタ・ソートで管理できます。iOS Share Extension・Android Share Intent から任意のアプリの共有メニューで URL を直接送ることも可能です。
 
 ---
 
@@ -13,6 +13,7 @@ iOS/Android ネイティブのブックマークアプリ。URL を保存し、�
 - 登録日ソート（新しい順 / 古い順）
 - OG メタデータ自動取得（Supabase Edge Function `fetch-meta`）
 - iOS Share Extension 対応（`expo-share-intent`）
+- Android Share Intent 対応（他アプリの共有メニューから URL を追加）
 
 ---
 
@@ -221,4 +222,4 @@ links/
 ## 既知の制限
 
 - Share Extension は Expo Go では動作しません（Development Build が必要）。
-- Android の Share Extension は現在サポート外です。
+- Android の Share Intent は実機 / エミュレータでの動作確認が必要です。Simulator では検証できません（`npx expo run:android` または EAS ビルドを使用してください）。

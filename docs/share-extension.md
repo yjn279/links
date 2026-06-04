@@ -1,8 +1,17 @@
-# Share Extension
+# Share Extension / Share Intent
 
-iOS の共有メニューから Links に URL を送る機能のビルド方針と動作確認手順をまとめる。Share Extension は Expo Go では動作しないため、Simulator もしくは Development / Preview ビルドが必要になる。
+iOS と Android の共有メニューから Links に URL を送る機能のビルド方針と動作確認手順をまとめる。iOS の Share Extension および Android の Share Intent は Expo Go では動作しないため、Simulator / エミュレータもしくは Development / Preview ビルドが必要になる。
 
-## ビルド経路
+## OS 別の共有導線
+
+OS によって共有の届き方と処理経路が異なる。
+
+| OS | 共有の仕組み | 処理経路 |
+| :-- | :-- | :-- |
+| iOS | Share Extension から deep link ( `links://dataUrl=<key>` ) として届く | `app/+native-intent.tsx` → `app/shareintent.tsx` → `/(app)/add` |
+| Android | `ACTION_SEND` として `MainActivity` に届く | `AndroidShareHandler` が `hasShareIntent` を監視し `/(app)/add` へ遷移 |
+
+## iOS ビルド経路
 
 検証目的と利用可能なリソースによってビルド経路が分かれる。それぞれの特徴を以下に示す。
 
@@ -13,15 +22,25 @@ iOS の共有メニューから Links に URL を送る機能のビルド方針�
 | EAS Preview Build | `eas build --profile preview --platform ios` | TestFlight 内部配布、最終確認 |
 | Xcode ローカルビルド | workspace を開いて `Cmd+R` | EAS を使わずに実機で検証する場合 |
 
+## Android ビルド経路
+
+| 経路 | コマンド | 用途 |
+| :-- | :-- | :-- |
+| Android エミュレータ | `npx expo run:android` | ローカルでの開発と回帰確認 |
+| EAS Development Build | `eas build --profile development --platform android` | 実機での Hot Reload を伴う開発 |
+| EAS Preview Build | `eas build --profile preview --platform android` | 内部配布、最終確認 |
+
+エミュレータを使う場合は Android Studio の AVD Manager でエミュレータが起動済みであることを確認してから `npx expo run:android` を実行する。実機を使う場合は USB デバッグを有効にした状態で接続する。
+
 ## 前提条件
 
 検証に共通して必要な準備を以下に示す。
 
 - Supabase プロジェクトの URL と anon key が `.env` に設定されている
-- 検証対象のビルドが端末または Simulator にインストール済み
+- 検証対象のビルドが端末または Simulator / エミュレータにインストール済み
 - Supabase Auth にログイン用アカウントが作成済み
 
-## 動作確認手順
+## iOS 動作確認手順
 
 検証は次の流れで実施する。
 
@@ -36,6 +55,44 @@ iOS の共有メニューから Links に URL を送る機能のビルド方針�
 | :-- | :-- |
 | ログイン済み | `/(app)/add` 画面が直接開き、URL が自動入力された状態で待機する |
 | 未ログイン | 共有 URL が `pendingUrl` クエリに乗ってログイン画面へ遷移し、認証成功後に `/(app)/add?url=<共有URL>` へ自動遷移する |
+
+## Android 動作確認手順
+
+Android の Share Intent は実機またはエミュレータで検証する。Simulator は利用できない。
+
+### ビルドとインストール
+
+```bash
+npx expo run:android
+```
+
+または EAS でビルドした APK / AAB をエミュレータ・実機にインストールする。
+
+### 共有の手順
+
+1. Chrome または任意のアプリで URL を開く
+2. 共有ボタンをタップし、共有シートに Links が表示されるか確認する
+3. Links を選択すると `MainActivity` が起動し、`AndroidShareHandler` が `ACTION_SEND` を受け取る
+4. `/(app)/add` 画面が開き、URL が自動入力された状態で待機する
+5. Add ボタンでブックマークを保存し、一覧画面で反映を確認する
+
+ログイン状態によりアプリ側の挙動が変わる。違いを以下に示す。
+
+| 状態 | 挙動 |
+| :-- | :-- |
+| ログイン済み | `/(app)/add` 画面が直接開き、URL が自動入力された状態で待機する |
+| 未ログイン | `/(auth)/login` 画面へ遷移し、認証成功後に `/(app)/add?url=<共有URL>` へ自動遷移する |
+
+### インテントフィルタの確認
+
+`app.json` の `expo-share-intent` プラグイン設定に `androidIntentFilters: ["text/*"]` が明示されていることを確認する。`npx expo prebuild --platform android --no-install` を実行し、生成された `android/app/src/main/AndroidManifest.xml` の `.MainActivity` に次の要素が含まれていれば正しく設定されている。
+
+- `android.intent.action.SEND`
+- `android.intent.category.DEFAULT`
+- `android:mimeType="text/*"`
+- `android:launchMode="singleTask"`
+
+確認後、`android/` ディレクトリは削除する（CNG 運用のため `.gitignore` 対象）。
 
 ## Xcode ローカルビルドのセットアップ
 
