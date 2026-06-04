@@ -29,6 +29,10 @@ export default function LoginScreen() {
             : '/(auth)/sign-up'
         );
       }}
+      onForgotPassword={() => {
+        clearError();
+        router.push('/(auth)/forgot-password');
+      }}
       loading={loading}
       error={error}
     />
