@@ -19,6 +19,7 @@ import { GlassSurface } from './GlassSurface';
 import { Icon } from './Icon';
 import { TagChipEditor } from './TagChipEditor';
 import { color, radius, sp, typeScale } from '../src/theme/tokens';
+import { normalizeUrl } from '../src/bookmarks/url';
 
 type Props = {
   open: boolean;
@@ -36,6 +37,7 @@ export function AddBookmarkModal({ open, onClose, onSave, defaultUrl, existingTa
   const modalScale = useRef(new Animated.Value(0.96)).current;
   const [focused, setFocused] = useState(false);
   const [visible, setVisible] = useState(open);
+  const [urlError, setUrlError] = useState<string | null>(null);
 
   useEffect(() => {
     if (defaultUrl) setUrl(defaultUrl);
@@ -63,9 +65,13 @@ export function AddBookmarkModal({ open, onClose, onSave, defaultUrl, existingTa
   }, [open, scrimOpacity, modalScale]);
 
   const handleSave = () => {
-    const trimmed = url.trim();
-    if (!trimmed) return;
-    onSave(trimmed, selectedTags);
+    const result = normalizeUrl(url);
+    if (!result.ok) {
+      setUrlError(result.error);
+      return;
+    }
+    setUrlError(null);
+    onSave(result.url, selectedTags);
     setUrl('');
     setSelectedTags([]);
   };
@@ -111,7 +117,10 @@ export function AddBookmarkModal({ open, onClose, onSave, defaultUrl, existingTa
             <TextInput
               ref={inputRef}
               value={url}
-              onChangeText={setUrl}
+              onChangeText={(text) => {
+                setUrl(text);
+                if (urlError) setUrlError(null);
+              }}
               placeholder="https://…"
               placeholderTextColor={color.ink4}
               style={styles.input}
@@ -124,6 +133,15 @@ export function AddBookmarkModal({ open, onClose, onSave, defaultUrl, existingTa
               onBlur={() => setFocused(false)}
             />
           </View>
+          {urlError ? (
+            <Text
+              style={styles.errorText}
+              accessibilityLabel={urlError}
+              accessibilityRole="alert"
+            >
+              {urlError}
+            </Text>
+          ) : null}
 
           {/* Tag selector */}
           <View style={styles.tagSection}>
@@ -227,10 +245,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     marginTop: 18,
-    marginBottom: 16,
+    marginBottom: 4,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+  },
+  errorText: {
+    ...typeScale.bodySm,
+    color: color.catDesign,
+    marginBottom: 12,
   },
   fieldFocused: {
     shadowColor: color.amber,
@@ -251,6 +274,7 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     gap: 10,
+    marginTop: 8,
   },
   btn: {
     flex: 1,
