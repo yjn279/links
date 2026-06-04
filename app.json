@@ -33,7 +33,8 @@
     },
     "plugins": [
       "expo-router",
-      ["expo-share-intent", { "androidIntentFilters": ["text/*"] }]
+      ["expo-share-intent", { "androidIntentFilters": ["text/*"] }],
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true
