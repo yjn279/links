@@ -1,6 +1,6 @@
 /**
  * Tests for components/AddBookmarkModal.tsx
- * Verifies: render (open=true/false), defaultUrl display, Save calls onSave(trimmed),
+ * Verifies: render (open=true/false), defaultUrl display, Save calls onSave(url, tags),
  * empty/whitespace input disables Save, Cancel/Close buttons call onClose.
  *
  * jest.useFakeTimers() to handle inputRef.current?.focus() setTimeout (AddBookmarkModal.tsx:44)
@@ -112,7 +112,7 @@ describe('AddBookmarkModal', () => {
     expect(inputs.length).toBeGreaterThan(0);
   });
 
-  it('calls onSave with trimmed URL and empty tag array when Save is pressed with a valid URL (AddBookmarkModal.tsx:62-66)', () => {
+  it('calls onSave with normalized URL and tags when Save is pressed with a valid URL (AddBookmarkModal.tsx:62-66)', () => {
     const onSave = jest.fn();
     let tree: ReturnType<typeof create>;
     act(() => {
@@ -139,8 +139,7 @@ describe('AddBookmarkModal', () => {
       saveBtn!.props.onPress();
     });
     expect(onSave).toHaveBeenCalledTimes(1);
-    // onSave signature is (url: string, tagNames: string[]) — no tags selected => empty array
-    expect(onSave).toHaveBeenCalledWith('https://trimmed.example.com', []);
+    expect(onSave).toHaveBeenCalledWith('https://trimmed.example.com/', []);
   });
 
   it('does NOT call onSave when Save is pressed with an empty URL (AddBookmarkModal.tsx:63-64)', () => {

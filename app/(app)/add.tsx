@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { AddBookmarkModal } from '../../components/AddBookmarkModal';
 import { useAuth } from '../../src/auth/use-auth';
 import { useBookmarksStore } from '../../src/bookmarks/store';
+import { normalizeUrl } from '../../src/bookmarks/url';
 import { color } from '../../src/theme/tokens';
 
 export default function AddBookmarkScreen() {
@@ -36,8 +37,16 @@ export default function AddBookmarkScreen() {
       dismiss();
       return;
     }
+    // Final guard — normalises and validates the URL before persisting.
+    // The modal already rejects invalid input, but this chokepoint also
+    // covers Share Extension paths where defaultUrl arrives directly.
+    const result = normalizeUrl(url);
+    if (!result.ok) {
+      dismiss();
+      return;
+    }
     try {
-      await add(url, session.user.id, tagNames);
+      await add(result.url, session.user.id, tagNames);
     } catch {
       // error is surfaced via store.lastMetaError; dismiss anyway
     }

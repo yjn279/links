@@ -7,7 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "links",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.yjn279.links",
@@ -23,8 +22,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.yjn279.links",
-      "edgeToEdgeEnabled": true
+      "package": "com.yjn279.links"
     },
     "web": {
       "bundler": "metro",
@@ -33,7 +31,8 @@
     },
     "plugins": [
       "expo-router",
-      "expo-share-intent"
+      "expo-share-intent",
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true

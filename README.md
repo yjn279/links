@@ -139,12 +139,12 @@ eas build --profile development --platform ios
 
 ## 配信自動化（CI/CD）
 
-EAS と GitHub Actions により、ブランチプレビューとリリースを自動配信します。
+EAS と GitHub Actions により、ブランチプレビューとリリースを配信します。
 
-- **ブランチプレビュー:** PR を作成・更新すると、iOS は TestFlight に自動配信され、Android は内部配布 APK のインストールリンクが PR にコメントされます。
+- **ブランチプレビュー:** PR に `preview` ラベルを付けると、iOS は TestFlight に自動配信され、Android は内部配布 APK のインストールリンクが PR にコメントされます。EAS の無料枠を消費するため、全 PR の自動ビルドはせず opt-in にしています。
 - **リリース:** GitHub Release を `vX.Y.Z` タグで publish すると、iOS の store ビルドが App Store Connect へ自動 submit されます。
 
-構成・初回セットアップ・トラブルシューティングは [`docs/ci-cd.md`](docs/ci-cd.md) を参照してください。手動でビルドする場合は次のとおりです。
+ブランチからリリースまでの運用フローは [`docs/workflow.md`](docs/workflow.md)、構成・初回セットアップ・トラブルシューティングは [`docs/ci-cd.md`](docs/ci-cd.md) を参照してください。手動でビルドする場合は次のとおりです。
 
 ```bash
 eas build --profile preview --platform ios   # 内部配布
@@ -214,6 +214,7 @@ links/
 │   └── meta.parse.test.ts
 ├── docs/
 │   ├── ci-cd.md                 配信自動化（CI/CD）の構成
+│   ├── workflow.md              開発・リリース運用フロー
 │   ├── rls-checklist.md         RLS 動作確認チェックリスト
 │   └── share-extension.md       Share Extension 確認手順
 ├── .env.example
@@ -231,5 +232,4 @@ links/
 ## 既知の制限
 
 - Share Extension は Expo Go では動作しません（Development Build が必要）。
-- `expo-share-intent` が新アーキテクチャ非対応の場合は `app.json` の `newArchEnabled` を `false` にしてください。
 - Android の Share Extension は現在サポート外です。

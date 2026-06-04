@@ -94,7 +94,7 @@ ShareExtension は別 bundle id `com.yjn279.links.share-extension` を持つた�
 | 3 | ShareExtension ターゲットの Team 設定 | 未設定なら Xcode で Team を割当てて再ビルド |
 | 4 | アプリの完全終了と再起動 | 共有シートのキャッシュを更新する |
 | 5 | 共有シート末尾の More から Edit で Links を有効化 | 初回は表示順から外れていることがある |
-| 6 | `newArchEnabled` の互換性 | `expo-share-intent` が新アーキ非対応の版なら `newArchEnabled: false` で再ビルド |
+| 6 | パッケージ整合性 | `expo-share-intent@6` は新アーキ対応済み。`package.json` のバージョンが SDK 55 要求版と一致しているか確認する |
 
 `.app/PlugIns/ShareExtension.appex` の確認コマンドは次のとおり。
 
